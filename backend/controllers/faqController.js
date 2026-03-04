@@ -1,0 +1,176 @@
+const pool = require('../config/db');
+
+// Временное хранилище состояний диалогов (в production лучше использовать Redis)
+const dialogStates = new Map();
+
+// Поиск по базе знаний с поддержкой диалогов
+exports.searchFaq = async (req, res) => {
+    try {
+        const { query } = req.query;
+        const userId = req.user.id; // ID пользователя из JWT
+
+        if (!query) {
+            return res.status(400).json({ message: 'Поисковый запрос обязателен' });
+        }
+
+        // Проверяем, есть ли у пользователя активный диалог
+        const currentState = dialogStates.get(userId);
+        
+        // Если есть активное состояние и пользователь выбрал вариант
+        if (currentState && currentState.waitingForChoice) {
+            // Ищем выбранный вариант по тексту кнопки
+            const choiceResult = await pool.query(
+                `SELECT * FROM faq 
+                 WHERE parent_id = $1 AND (keywords ILIKE $2 OR question ILIKE $2)`,
+                [currentState.parentId, `%${query}%`]
+            );
+
+            if (choiceResult.rows.length > 0) {
+                // Нашли конкретный вариант
+                const faqItem = choiceResult.rows[0];
+                
+                // Очищаем состояние
+                dialogStates.delete(userId);
+                
+                // Проверяем, есть ли у этого ответа свои дочерние элементы
+                const childrenResult = await pool.query(
+                    'SELECT id, question, keywords FROM faq WHERE parent_id = $1 ORDER BY id',
+                    [faqItem.id]
+                );
+
+                const hasChildren = childrenResult.rows.length > 0;
+                const buttons = faqItem.buttons || [];
+
+                // Формируем ответ
+                const response = [{
+                    id: faqItem.id,
+                    keywords: faqItem.keywords,
+                    question: faqItem.question,
+                    answer: faqItem.answer,
+                    category: faqItem.category,
+                    file_path: faqItem.file_path,
+                    buttons: buttons,
+                    hasChildren: hasChildren
+                }];
+
+                // Если есть дочерние элементы, но нет кнопок в JSON, создаем кнопки из них
+                if (hasChildren && buttons.length === 0) {
+                    response[0].buttons = childrenResult.rows.map(child => ({
+                        id: child.id,
+                        text: child.question || child.keywords
+                    }));
+                    
+                    // Сохраняем новое состояние для следующего шага
+                    dialogStates.set(userId, {
+                        parentId: faqItem.id,
+                        waitingForChoice: true,
+                        children: childrenResult.rows
+                    });
+                }
+
+                return res.json(response);
+            }
+        }
+
+        // Обычный поиск по ключевым словам (как было)
+        const result = await pool.query(
+            `SELECT id, keywords, question, answer, category, file_path, buttons
+             FROM faq
+             WHERE keywords ILIKE $1 OR (question IS NOT NULL AND question ILIKE $1)
+             ORDER BY 
+                CASE 
+                    WHEN keywords ILIKE $2 THEN 1
+                    WHEN keywords ILIKE $3 THEN 2
+                    ELSE 3
+                END,
+                id DESC
+             LIMIT 5`,
+            [`%${query}%`, `${query}%`, `%${query}`]
+        );
+
+        if (result.rows.length === 0) {
+            return res.json([]);
+        }
+
+        // Проверяем, есть ли у найденных ответов дочерние элементы
+        const faqItems = result.rows;
+        const response = [];
+
+        for (const item of faqItems) {
+            // Проверяем, есть ли у этого элемента дочерние вопросы
+            const childrenResult = await pool.query(
+                'SELECT COUNT(*) FROM faq WHERE parent_id = $1',
+                [item.id]
+            );
+
+            const hasChildren = parseInt(childrenResult.rows[0].count) > 0;
+            const buttons = item.buttons || [];
+
+            const responseItem = {
+                id: item.id,
+                keywords: item.keywords,
+                question: item.question,
+                answer: item.answer,
+                category: item.category,
+                file_path: item.file_path,
+                buttons: buttons,
+                hasChildren: hasChildren
+            };
+
+            // Если есть дочерние элементы и нет готовых кнопок, создаем кнопки из дочерних вопросов
+            if (hasChildren && buttons.length === 0) {
+                const children = await pool.query(
+                    'SELECT id, question, keywords FROM faq WHERE parent_id = $1 ORDER BY id',
+                    [item.id]
+                );
+                
+                responseItem.buttons = children.rows.map(child => ({
+                    id: child.id,
+                    text: child.question || child.keywords
+                }));
+
+                // Сохраняем состояние для пользователя
+                dialogStates.set(userId, {
+                    parentId: item.id,
+                    waitingForChoice: true,
+                    children: children.rows
+                });
+            }
+
+            response.push(responseItem);
+        }
+
+        res.json(response);
+
+    } catch (error) {
+        console.error('Ошибка при поиске в FAQ:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+};
+
+// Получение всех категорий FAQ (без изменений)
+exports.getCategories = async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT DISTINCT category FROM faq WHERE category IS NOT NULL'
+        );
+
+        res.json(result.rows.map(row => row.category));
+
+    } catch (error) {
+        console.error('Ошибка при получении категорий:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+};
+
+// Сброс диалога (новая функция)
+exports.resetDialog = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        dialogStates.delete(userId);
+        res.json({ message: 'Диалог сброшен' });
+    } catch (error) {
+        console.error('Ошибка при сбросе диалога:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+};
