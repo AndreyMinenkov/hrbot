@@ -1,0 +1,282 @@
+/*---------------------------
+  Страница входа в стиле WhatsApp
+  Минималистичный дизайн с акцентом на форму
+----------------------------*/
+.login-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-default);
+  overflow-y: auto;
+}
+
+/*---------------------------
+  Шапка как в WhatsApp
+----------------------------*/
+.login-header {
+  background-color: var(--whatsapp-teal);
+  color: white;
+  padding: 20px 16px;
+  text-align: center;
+  box-shadow: var(--shadow-md);
+}
+
+.login-header__logo {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 10px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--whatsapp-teal);
+  font-size: 2.5rem;
+}
+
+.login-header__title {
+  font-weight: 600;
+  font-size: 1.5rem;
+  margin-bottom: 5px;
+}
+
+.login-header__subtitle {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/*---------------------------
+  Основной контент
+----------------------------*/
+.login-content {
+  flex: 1;
+  padding: 30px 20px;
+  max-width: 400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/*---------------------------
+  Форма входа
+----------------------------*/
+.login-form {
+  background-color: white;
+  border-radius: 12px;
+  padding: 24px 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.login-form__title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/*---------------------------
+  Поля ввода как в WhatsApp
+----------------------------*/
+.login-form__field {
+  margin-bottom: 20px;
+}
+
+.login-form__label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--ui-dark-gray);
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.login-form__input-wrapper {
+  background-color: #f0f2f4;
+  border-radius: 24px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  border: 1px solid transparent;
+  transition: border-color var(--transition-fast);
+}
+
+.login-form__input-wrapper:focus-within {
+  border-color: var(--whatsapp-teal);
+  background-color: white;
+}
+
+.login-form__input-wrapper i {
+  color: var(--icon-color);
+  font-size: 1.1rem;
+  margin-right: 10px;
+}
+
+.login-form__input {
+  flex: 1;
+  padding: 14px 0;
+  background: transparent;
+  border: none;
+  font-size: 1rem;
+  width: 100%;
+}
+
+.login-form__input::placeholder {
+  color: #9ca5ab;
+}
+
+/*---------------------------
+  Кнопка входа (как в WhatsApp)
+----------------------------*/
+.login-form__button {
+  width: 100%;
+  background-color: var(--whatsapp-teal);
+  color: white;
+  border: none;
+  border-radius: 24px;
+  padding: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.login-form__button:hover {
+  background-color: var(--whatsapp-green-medium);
+}
+
+.login-form__button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-form__button i {
+  font-size: 1.2rem;
+}
+
+/*---------------------------
+  Ошибки
+----------------------------*/
+.login-form__error {
+  background-color: #fce8e8;
+  color: #d32f2f;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-form__error i {
+  color: #d32f2f;
+}
+
+/*---------------------------
+  Ссылка на восстановление
+----------------------------*/
+.login-form__forgot {
+  text-align: right;
+  margin-top: 10px;
+}
+
+.login-form__forgot a {
+  color: var(--whatsapp-teal);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.login-form__forgot a:hover {
+  text-decoration: underline;
+}
+
+/*---------------------------
+  Футер с информацией
+----------------------------*/
+.login-footer {
+  padding: 20px;
+  text-align: center;
+  color: var(--ui-dark-gray);
+  font-size: 0.8rem;
+  border-top: 1px solid var(--border-light);
+  margin-top: 30px;
+}
+
+.login-footer__links {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.login-footer__links a {
+  color: var(--whatsapp-teal);
+  text-decoration: none;
+}
+
+.login-footer__links a:hover {
+  text-decoration: underline;
+}
+
+/*---------------------------
+  Анимация загрузки
+----------------------------*/
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+/*---------------------------
+  Адаптация для мобильных
+----------------------------*/
+@media (max-width: 480px) {
+  .login-header {
+    padding: 15px 16px;
+  }
+  
+  .login-header__logo {
+    width: 50px;
+    height: 50px;
+    font-size: 2rem;
+  }
+  
+  .login-header__title {
+    font-size: 1.3rem;
+  }
+  
+  .login-content {
+    padding: 20px 16px;
+  }
+  
+  .login-form {
+    padding: 20px 16px;
+  }
+}
+
+/* PWA оптимизации */
+@media (display-mode: standalone) {
+  .login-page {
+    background-color: var(--background-default);
+  }
+  
+  .login-header {
+    padding-top: max(20px, env(safe-area-inset-top));
+  }
+  
+  .login-footer {
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+}

@@ -1,0 +1,430 @@
+/*---------------------------
+  FAQ (База знаний)
+  В стиле WhatsApp - чат с ботом / информация
+----------------------------*/
+.faq-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-default);
+}
+
+/*---------------------------
+  Шапка FAQ как в WhatsApp
+----------------------------*/
+.faq-header {
+  background-color: var(--whatsapp-teal);
+  color: white;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.faq-header__back {
+  font-size: 1.5rem;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color var(--transition-fast);
+}
+
+.faq-header__back:hover {
+  background-color: rgba(255,255,255,0.1);
+}
+
+.faq-header__title {
+  font-weight: 600;
+  font-size: 1.2rem;
+  flex: 1;
+}
+
+.faq-header__search {
+  font-size: 1.2rem;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color var(--transition-fast);
+}
+
+.faq-header__search:hover {
+  background-color: rgba(255,255,255,0.1);
+}
+
+/*---------------------------
+  Поиск (как в WhatsApp)
+----------------------------*/
+.faq-search {
+  background-color: white;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.faq-search-bar {
+  background-color: var(--search-bg);
+  border-radius: 24px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ui-dark-gray);
+  transition: background-color var(--transition-fast);
+}
+
+.faq-search-bar:focus-within {
+  background-color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.faq-search-bar i {
+  font-size: 0.9rem;
+  color: var(--icon-color);
+}
+
+.faq-search-bar input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  font-size: 0.95rem;
+}
+
+.faq-search-bar input::placeholder {
+  color: #9ca5ab;
+}
+
+/*---------------------------
+  Категории FAQ
+  Как в WhatsApp - список чатов/контактов
+----------------------------*/
+.faq-categories {
+  background-color: white;
+}
+
+.faq-category {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  gap: 16px;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.faq-category:hover {
+  background-color: var(--hover-bg);
+}
+
+.faq-category__icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, var(--whatsapp-teal), var(--whatsapp-green-medium));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.faq-category__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.faq-category__name {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 5px;
+  font-size: 1rem;
+}
+
+.faq-category__count {
+  font-size: 0.85rem;
+  color: var(--ui-dark-gray);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.faq-category__arrow {
+  color: var(--ui-dark-gray);
+  font-size: 0.9rem;
+}
+
+/*---------------------------
+  Список вопросов
+  Как в WhatsApp - сообщения
+----------------------------*/
+.faq-questions {
+  flex: 1;
+  overflow-y: auto;
+  background-color: white;
+  padding: 8px 0;
+}
+
+.faq-question-item {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.faq-question-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.faq-question-item__question {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.faq-question-item__question i {
+  color: var(--whatsapp-teal);
+  font-size: 0.9rem;
+}
+
+.faq-question-item__answer {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-left: 24px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border-light);
+}
+
+/*---------------------------
+  Детальный ответ на вопрос
+  Как в WhatsApp - пузырек сообщения
+----------------------------*/
+.faq-detail {
+  flex: 1;
+  overflow-y: auto;
+  background-color: var(--background-chat);
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path fill="%23e0d6cd" d="M0 0h32v32H0z"/><path fill="%23cfc6bc" d="M16 0h16v16H16zM0 16h16v16H0z"/></svg>');
+  background-repeat: repeat;
+  background-size: 120px;
+  padding: 20px;
+}
+
+.faq-message {
+  max-width: var(--message-max-width);
+  margin: 0 auto 20px;
+  background-color: var(--bubble-incoming);
+  border-radius: 12px 12px 12px 4px;
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.faq-message__title {
+  font-weight: 600;
+  color: var(--whatsapp-teal);
+  margin-bottom: 12px;
+  font-size: 1.1rem;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.faq-message__content {
+  color: var(--text-primary);
+  line-height: 1.6;
+  font-size: 1rem;
+  white-space: pre-wrap;
+}
+
+.faq-message__content p {
+  margin-bottom: 12px;
+}
+
+.faq-message__content ul,
+.faq-message__content ol {
+  margin-left: 20px;
+  margin-bottom: 12px;
+}
+
+.faq-message__content li {
+  margin-bottom: 4px;
+}
+
+.faq-message__footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  color: var(--ui-dark-gray);
+  font-size: 0.8rem;
+}
+
+.faq-message__footer i {
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.faq-message__footer i:hover {
+  color: var(--whatsapp-teal);
+}
+
+/*---------------------------
+  Пустая страница / Нет результатов
+----------------------------*/
+.faq-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--ui-dark-gray);
+  text-align: center;
+}
+
+.faq-empty i {
+  font-size: 4rem;
+  color: var(--border-light);
+  margin-bottom: 20px;
+}
+
+.faq-empty h3 {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.faq-empty p {
+  font-size: 0.95rem;
+  max-width: 250px;
+}
+
+/*---------------------------
+  Поисковые результаты
+----------------------------*/
+.search-results {
+  background-color: white;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.search-result-item {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.search-result-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.search-result-item__category {
+  font-size: 0.8rem;
+  color: var(--whatsapp-teal);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.search-result-item__question {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.search-result-item__answer-preview {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/*---------------------------
+  Хлебные крошки (навигация)
+----------------------------*/
+.faq-breadcrumbs {
+  background-color: white;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+
+.faq-breadcrumbs::-webkit-scrollbar {
+  display: none;
+}
+
+.faq-breadcrumbs__item {
+  color: var(--ui-dark-gray);
+  cursor: pointer;
+}
+
+.faq-breadcrumbs__item:hover {
+  color: var(--whatsapp-teal);
+  text-decoration: underline;
+}
+
+.faq-breadcrumbs__item:last-child {
+  color: var(--text-primary);
+  font-weight: 500;
+  cursor: default;
+}
+
+.faq-breadcrumbs__item:last-child:hover {
+  text-decoration: none;
+}
+
+.faq-breadcrumbs__separator {
+  color: var(--border-light);
+}
+
+/*---------------------------
+  Адаптация для мобильных
+----------------------------*/
+@media (max-width: 768px) {
+  .faq-message {
+    max-width: 95%;
+  }
+  
+  .faq-category__icon {
+    width: 45px;
+    height: 45px;
+    font-size: 1.3rem;
+  }
+  
+  .faq-question-item__answer {
+    margin-left: 16px;
+    font-size: 0.9rem;
+  }
+}
+
+/* PWA оптимизации */
+@media (display-mode: standalone) {
+  .faq-header {
+    padding-top: max(12px, env(safe-area-inset-top));
+  }
+}

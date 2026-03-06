@@ -1,0 +1,613 @@
+/*---------------------------
+  Admin Stats (Статистика и аналитика)
+  В стиле WhatsApp Business - дашборд с метриками
+----------------------------*/
+.admin-stats {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-default);
+  overflow-y: auto;
+}
+
+/*---------------------------
+  Заголовок с периодом
+  Как в WhatsApp - выбор времени
+----------------------------*/
+.stats-header {
+  padding: 20px;
+  background-color: white;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.stats-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats-title i {
+  color: var(--whatsapp-teal);
+}
+
+.stats-period {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--search-bg);
+  padding: 4px;
+  border-radius: 30px;
+}
+
+.stats-period__btn {
+  padding: 8px 16px;
+  border-radius: 30px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--ui-dark-gray);
+  border: none;
+  background: none;
+}
+
+.stats-period__btn--active {
+  background-color: var(--whatsapp-teal);
+  color: white;
+}
+
+/*---------------------------
+  Основные метрики (KPI)
+  Как виджеты в WhatsApp Business
+----------------------------*/
+.stats-kpi {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 20px;
+}
+
+@media (max-width: 1024px) {
+  .stats-kpi {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-kpi {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kpi-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.kpi-card__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--whatsapp-teal), var(--whatsapp-green-medium));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.kpi-card__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.kpi-card__label {
+  font-size: 0.85rem;
+  color: var(--ui-dark-gray);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.kpi-card__value {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.kpi-card__change {
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kpi-card__change--positive {
+  color: #4caf50;
+}
+
+.kpi-card__change--negative {
+  color: #f44336;
+}
+
+/*---------------------------
+  Графики и аналитика
+  Две колонки как в WhatsApp Web
+----------------------------*/
+.stats-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  padding: 0 20px 20px;
+}
+
+@media (max-width: 768px) {
+  .stats-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chart-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.chart-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.chart-card__title {
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-card__title i {
+  color: var(--whatsapp-teal);
+}
+
+.chart-card__legend {
+  display: flex;
+  gap: 16px;
+  font-size: 0.8rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-item__color {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.legend-item__color--messages {
+  background-color: var(--whatsapp-teal);
+}
+
+.legend-item__color--users {
+  background-color: var(--whatsapp-green);
+}
+
+.legend-item__color--faq {
+  background-color: var(--whatsapp-green-medium);
+}
+
+/*---------------------------
+  Таблица активности
+  Как список чатов
+----------------------------*/
+.stats-table-section {
+  padding: 0 20px 20px;
+}
+
+.stats-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.stats-table-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats-table-title i {
+  color: var(--whatsapp-teal);
+}
+
+.stats-table {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.stats-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.stats-table th {
+  text-align: left;
+  padding: 16px 20px;
+  background-color: var(--search-bg);
+  color: var(--ui-dark-gray);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stats-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+}
+
+.stats-table tr:last-child td {
+  border-bottom: none;
+}
+
+.stats-table tr:hover td {
+  background-color: var(--hover-bg);
+}
+
+/* Пользователь в таблице */
+.table-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.table-user__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, var(--ui-dark-gray), var(--whatsapp-teal));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.table-user__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.table-user__info {
+  min-width: 0;
+}
+
+.table-user__name {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table-user__role {
+  font-size: 0.75rem;
+  color: var(--ui-dark-gray);
+}
+
+/* Бейджи в таблице */
+.table-badge {
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.table-badge--success {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+}
+
+.table-badge--warning {
+  background-color: #fff4e5;
+  color: #f57c00;
+}
+
+.table-badge--danger {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+/* Прогресс бар в таблице */
+.table-progress {
+  width: 100px;
+  height: 6px;
+  background-color: var(--border-light);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.table-progress__bar {
+  height: 100%;
+  background-color: var(--whatsapp-teal);
+  border-radius: 3px;
+}
+
+/*---------------------------
+  Активность по часам
+  (специальный график)
+----------------------------*/
+.hourly-activity {
+  display: flex;
+  align-items: flex-end;
+  height: 200px;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.hour-bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.hour-bar__value {
+  width: 100%;
+  background: linear-gradient(to top, var(--whatsapp-teal), var(--whatsapp-green));
+  border-radius: 8px 8px 0 0;
+  min-height: 4px;
+  transition: height var(--transition-base);
+}
+
+.hour-bar__label {
+  font-size: 0.7rem;
+  color: var(--ui-dark-gray);
+  transform: rotate(-45deg);
+  white-space: nowrap;
+}
+
+/*---------------------------
+  Топ запросов (FAQ)
+  Как список сообщений
+----------------------------*/
+.top-queries {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.top-query-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.top-query-item:last-child {
+  border-bottom: none;
+}
+
+.top-query-item__rank {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, var(--whatsapp-teal), var(--whatsapp-green-medium));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.top-query-item__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.top-query-item__question {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.top-query-item__count {
+  font-size: 0.8rem;
+  color: var(--ui-dark-gray);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.top-query-item__count i {
+  color: var(--whatsapp-teal);
+  font-size: 0.7rem;
+}
+
+.top-query-item__percentage {
+  font-weight: 600;
+  color: var(--whatsapp-teal);
+  margin-left: 16px;
+}
+
+/*---------------------------
+  Пустое состояние
+----------------------------*/
+.stats-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--ui-dark-gray);
+  text-align: center;
+  background-color: white;
+  margin: 20px;
+  border-radius: 16px;
+}
+
+.stats-empty i {
+  font-size: 4rem;
+  color: var(--border-light);
+  margin-bottom: 20px;
+}
+
+.stats-empty h3 {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.stats-empty p {
+  font-size: 0.95rem;
+  max-width: 250px;
+}
+
+/*---------------------------
+  Экспорт данных
+----------------------------*/
+.stats-export {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.export-btn {
+  padding: 8px 16px;
+  border-radius: 30px;
+  background-color: var(--search-bg);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+}
+
+.export-btn:hover {
+  background-color: var(--whatsapp-teal);
+  color: white;
+}
+
+.export-btn i {
+  font-size: 1rem;
+}
+
+/*---------------------------
+  Адаптация для мобильных
+----------------------------*/
+@media (max-width: 768px) {
+  .stats-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+  }
+  
+  .stats-period {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .stats-period__btn {
+    flex: 1;
+    text-align: center;
+  }
+  
+  .kpi-card {
+    padding: 16px;
+  }
+  
+  .kpi-card__value {
+    font-size: 1.5rem;
+  }
+  
+  .stats-table th,
+  .stats-table td {
+    padding: 12px;
+  }
+  
+  .table-user__name {
+    max-width: 100px;
+  }
+}
+
+/* PWA оптимизации */
+@media (display-mode: standalone) {
+  .stats-header {
+    padding-top: max(20px, env(safe-area-inset-top));
+  }
+}
+
+/* Мобильная кнопка назад */
+.mobile-back-button {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-back-button {
+    display: flex;
+  }
+  
+  .stats-header {
+    padding: 12px 16px;
+  }
+  
+  .stats-header > div:first-child {
+    flex: 1;
+  }
+}

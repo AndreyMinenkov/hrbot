@@ -1,0 +1,1214 @@
+import React, { useEffect, useState } from 'react';
+import { adminFaq } from '../services/api';
+import './AdminFaq.css';
+
+interface FaqItem {
+  id: number;
+  keywords: string;
+  question: string | null;
+  answer: string;
+  category: string | null;
+  file_path: string | null;
+  parent_id: number | null;
+  buttons: Array<{ id: number; text: string }> | null;
+  created_at: string;
+  hasChildren?: boolean;  // Добавлено новое поле
+}
+
+interface Category {
+  id: number;
+  name: string;
+  count: number;
+}
+
+interface BranchNode {
+  id: number;
+  keywords: string;
+  question: string;
+  answer: string;
+  children: BranchNode[];
+  isEditing?: boolean;
+  isAdding?: boolean;
+  newChild?: { keywords: string; question: string; answer: string; };
+  buttons?: Array<{ text: string; action?: string }>;
+  newButtonText?: string;
+}
+
+const AdminFaq: React.FC = () => {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [questions, setQuestions] = useState<FaqItem[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showQuestionModal, setShowQuestionModal] = useState(false);
+  const [showBranchModal, setShowBranchModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);  // Новое состояние для простого редактора
+  const [selectedRootQuestion, setSelectedRootQuestion] = useState<FaqItem | null>(null);
+  const [editingQuestion, setEditingQuestion] = useState<FaqItem | null>(null);  // Для простого редактора
+  const [branchTree, setBranchTree] = useState<BranchNode[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newQuestionData, setNewQuestionData] = useState({
+    keywords: '',
+    question: '',
+    answer: '',
+  });
+
+  // Загрузка категорий
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      setLoading(true);
+      const response = await adminFaq.getRoot();
+
+      const catsWithCounts = await Promise.all(
+        response.data.map(async (item: any) => {
+          try {
+            const childrenResponse = await adminFaq.getChildren(item.id);
+            return {
+              id: item.id,
+              name: item.keywords,
+              count: childrenResponse.data.length || 0
+            };
+          } catch (error) {
+            return {
+              id: item.id,
+              name: item.keywords,
+              count: 0
+            };
+          }
+        })
+      );
+
+      setCategories(catsWithCounts);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Загрузка вопросов для выбранной категории
+  const loadQuestions = async (categoryId: number) => {
+    try {
+      const response = await adminFaq.getChildren(categoryId);
+      setQuestions(response.data);
+    } catch (error) {
+      console.error('Error loading questions:', error);
+    }
+  };
+
+  // Загрузка всей ветки для родительского вопроса
+  const loadBranch = async (rootQuestionId: number) => {
+    try {
+      const loadChildren = async (parentId: number): Promise<BranchNode[]> => {
+        const response = await adminFaq.getChildren(parentId);
+        return Promise.all(response.data.map(async (child: FaqItem) => ({
+          id: child.id,
+          keywords: child.keywords,
+          question: child.question || '',
+          answer: child.answer,
+          isEditing: false,
+          isAdding: false,
+          buttons: child.buttons || [],
+          children: await loadChildren(child.id)
+        })));
+      };
+
+      const rootQuestion = questions.find(q => q.id === rootQuestionId);
+      if (!rootQuestion) return;
+
+      const children = await loadChildren(rootQuestionId);
+
+      setBranchTree([{
+        id: rootQuestion.id,
+        keywords: rootQuestion.keywords,
+        question: rootQuestion.question || '',
+        answer: rootQuestion.answer,
+        isEditing: false,
+        isAdding: false,
+        buttons: rootQuestion.buttons || [],
+        children: children
+      }]);
+
+      setSelectedRootQuestion(rootQuestion);
+      setShowBranchModal(true);
+    } catch (error) {
+      console.error('Error loading branch:', error);
+    }
+  };
+
+  // Открыть простой редактор для вопроса без ветки
+  const openEditQuestion = (question: FaqItem) => {
+    setEditingQuestion(question);
+    setShowEditModal(true);
+  };
+
+  // Выбор категории
+  const handleCategoryClick = (category: Category) => {
+    setSelectedCategory(category);
+    loadQuestions(category.id);
+  };
+
+  // Клик по вопросу
+  const handleQuestionClick = (question: FaqItem) => {
+    if (question.hasChildren) {
+      loadBranch(question.id);
+    } else {
+      openEditQuestion(question);
+    }
+  };
+
+  // Создание категории
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+
+    const formData = new FormData();
+    formData.append('keywords', newCategoryName);
+    formData.append('answer', 'Категория');
+    formData.append('question', '');
+    formData.append('category', '');
+    formData.append('parent_id', '');
+
+    try {
+      await adminFaq.create(formData);
+      setNewCategoryName('');
+      setShowCategoryModal(false);
+      loadCategories();
+    } catch (error) {
+      console.error('Error creating category:', error);
+    }
+  };
+
+  // Удаление категории со всеми вопросами
+  const handleDeleteCategory = async (id: number) => {
+    if (!window.confirm('Удалить категорию? Все вопросы в ней также будут удалены.')) return;
+
+    try {
+      await adminFaq.delete(id);
+      if (selectedCategory?.id === id) {
+        setSelectedCategory(null);
+        setQuestions([]);
+      }
+      loadCategories();
+    } catch (error) {
+      console.error('Error deleting category:', error);
+    }
+  };
+
+  // Создание родительского вопроса
+  const handleAddQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedCategory) {
+      alert('Сначала выберите категорию');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('keywords', newQuestionData.keywords);
+    formData.append('question', newQuestionData.question);
+    formData.append('answer', newQuestionData.answer);
+    formData.append('category', selectedCategory.name);
+    formData.append('parent_id', selectedCategory.id.toString());
+
+    try {
+      await adminFaq.create(formData);
+      setNewQuestionData({ keywords: '', question: '', answer: '' });
+      setShowQuestionModal(false);
+      loadQuestions(selectedCategory.id);
+      loadCategories();
+    } catch (error) {
+      console.error('Error creating question:', error);
+    }
+  };
+
+  // Обновление вопроса (простой редактор)
+  const handleUpdateQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingQuestion) return;
+
+    const formData = new FormData();
+    formData.append('keywords', editingQuestion.keywords);
+    formData.append('question', editingQuestion.question || '');
+    formData.append('answer', editingQuestion.answer);
+    formData.append('category', editingQuestion.category || '');
+
+    try {
+      await adminFaq.update(editingQuestion.id, formData);
+      setShowEditModal(false);
+      setEditingQuestion(null);
+      if (selectedCategory) {
+        loadQuestions(selectedCategory.id);
+      }
+    } catch (error) {
+      console.error('Error updating question:', error);
+    }
+  };
+
+  // Добавление новой ветки (дочернего вопроса)
+  const addBranchNode = async (parentId: number, keywords: string, question: string, answer: string) => {
+    if (!selectedCategory) return;
+
+    const formData = new FormData();
+    formData.append('keywords', keywords);
+    formData.append('question', question);
+    formData.append('answer', answer);
+    formData.append('category', selectedCategory.name);
+    formData.append('parent_id', parentId.toString());
+
+    try {
+      const response = await adminFaq.create(formData);
+      const newId = response.data.id;
+
+      // Обновляем дерево
+      const addNodeToTree = (nodes: BranchNode[]): BranchNode[] => {
+        return nodes.map(node => {
+          if (node.id === parentId) {
+            return {
+              ...node,
+              isAdding: false,
+              children: [...node.children, {
+                id: newId,
+                keywords,
+                question,
+                answer,
+                children: [],
+                isEditing: false,
+                isAdding: false,
+                buttons: []
+              }]
+            };
+          }
+          if (node.children.length > 0) {
+            return {
+              ...node,
+              children: addNodeToTree(node.children)
+            };
+          }
+          return node;
+        });
+      };
+
+      setBranchTree(prev => addNodeToTree(prev));
+    } catch (error) {
+      console.error('Error creating branch:', error);
+    }
+  };
+
+  // Добавление кнопки к вопросу
+  const addButtonToNode = (nodeId: number, buttonText: string) => {
+    if (!buttonText.trim()) return;
+
+    const updateNodeButtons = (nodes: BranchNode[]): BranchNode[] => {
+      return nodes.map(node => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            buttons: [...(node.buttons || []), { text: buttonText }],
+            newButtonText: ''
+          };
+        }
+        if (node.children.length > 0) {
+          return {
+            ...node,
+            children: updateNodeButtons(node.children)
+          };
+        }
+        return node;
+      });
+    };
+
+    setBranchTree(prev => updateNodeButtons(prev));
+  };
+
+  // Удаление кнопки
+  const removeButtonFromNode = (nodeId: number, buttonIndex: number) => {
+    const updateNodeButtons = (nodes: BranchNode[]): BranchNode[] => {
+      return nodes.map(node => {
+        if (node.id === nodeId) {
+          const newButtons = [...(node.buttons || [])];
+          newButtons.splice(buttonIndex, 1);
+          return {
+            ...node,
+            buttons: newButtons
+          };
+        }
+        if (node.children.length > 0) {
+          return {
+            ...node,
+            children: updateNodeButtons(node.children)
+          };
+        }
+        return node;
+      });
+    };
+
+    setBranchTree(prev => updateNodeButtons(prev));
+  };
+
+  // Обновление вопроса в ветке
+  const updateBranchNode = async (node: BranchNode) => {
+    const formData = new FormData();
+    formData.append('keywords', node.keywords);
+    formData.append('question', node.question);
+    formData.append('answer', node.answer);
+    formData.append('category', selectedCategory?.name || '');
+    
+    // Добавляем кнопки в формате JSON
+    if (node.buttons && node.buttons.length > 0) {
+      formData.append('buttons', JSON.stringify(node.buttons));
+    }
+
+    try {
+      await adminFaq.update(node.id, formData);
+
+      // Обновляем состояние
+      const updateNodeInTree = (nodes: BranchNode[]): BranchNode[] => {
+        return nodes.map(n => {
+          if (n.id === node.id) {
+            return { ...node, isEditing: false };
+          }
+          if (n.children.length > 0) {
+            return { ...n, children: updateNodeInTree(n.children) };
+          }
+          return n;
+        });
+      };
+
+      setBranchTree(prev => updateNodeInTree(prev));
+
+      // Обновляем список вопросов, если это корневой вопрос
+      if (selectedCategory && node.id === selectedRootQuestion?.id) {
+        loadQuestions(selectedCategory.id);
+      }
+    } catch (error) {
+      console.error('Error updating question:', error);
+    }
+  };
+
+  // Удаление вопроса из ветки
+  const deleteBranchNode = async (nodeId: number) => {
+    if (!window.confirm('Удалить этот вопрос? Все дочерние вопросы также будут удалены.')) return;
+
+    try {
+      await adminFaq.delete(nodeId);
+
+      // Обновляем дерево
+      const removeNodeFromTree = (nodes: BranchNode[]): BranchNode[] => {
+        return nodes.filter(node => {
+          if (node.id === nodeId) {
+            return false;
+          }
+          if (node.children.length > 0) {
+            node.children = removeNodeFromTree(node.children);
+          }
+          return true;
+        });
+      };
+
+      setBranchTree(prev => removeNodeFromTree(prev));
+
+      // Если удалили корневой вопрос, закрываем модалку
+      if (nodeId === selectedRootQuestion?.id) {
+        setShowBranchModal(false);
+        if (selectedCategory) {
+          loadQuestions(selectedCategory.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting question:', error);
+    }
+  };
+
+  // Рекурсивный рендер ветки для просмотра/редактирования
+  const renderBranchNode = (node: BranchNode, level: number = 0) => {
+    return (
+      <div key={node.id} style={{
+        marginLeft: `${level * 30}px`,
+        marginTop: '16px',
+        padding: '16px',
+        border: '1px solid var(--border-light)',
+        borderRadius: '8px',
+        backgroundColor: level % 2 === 0 ? '#f9f9f9' : 'white'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h4 style={{ fontSize: '0.95rem', color: 'var(--whatsapp-teal)' }}>
+            <i className="fas fa-code-branch"></i> Уровень {level + 1}
+          </h4>
+          <div>
+            <button
+              type="button"
+              className="faq-question-item__action"
+              onClick={() => {
+                const updateNode = (nodes: BranchNode[]): BranchNode[] => {
+                  return nodes.map(n => {
+                    if (n.id === node.id) {
+                      return { ...n, isEditing: !n.isEditing };
+                    }
+                    if (n.children.length > 0) {
+                      return { ...n, children: updateNode(n.children) };
+                    }
+                    return n;
+                  });
+                };
+                setBranchTree(prev => updateNode(prev));
+              }}
+              style={{ marginRight: '8px' }}
+              title="Редактировать"
+            >
+              <i className="fas fa-pen" style={{ color: 'var(--whatsapp-teal)' }}></i>
+            </button>
+            <button
+              type="button"
+              className="faq-question-item__action"
+              onClick={() => {
+                const updateNode = (nodes: BranchNode[]): BranchNode[] => {
+                  return nodes.map(n => {
+                    if (n.id === node.id) {
+                      return { ...n, isAdding: true };
+                    }
+                    if (n.children.length > 0) {
+                      return { ...n, children: updateNode(n.children) };
+                    }
+                    return n;
+                  });
+                };
+                setBranchTree(prev => updateNode(prev));
+              }}
+              style={{ marginRight: '8px' }}
+              title="Добавить ветку"
+            >
+              <i className="fas fa-plus-circle" style={{ color: 'var(--whatsapp-green)' }}></i>
+            </button>
+            <button
+              type="button"
+              className="faq-question-item__action"
+              onClick={() => deleteBranchNode(node.id)}
+              title="Удалить"
+            >
+              <i className="fas fa-trash" style={{ color: '#d32f2f' }}></i>
+            </button>
+          </div>
+        </div>
+
+        {node.isEditing ? (
+          // Режим редактирования
+          <div>
+            <div className="faq-form-group">
+              <label>Ключевые слова</label>
+              <input
+                type="text"
+                value={node.keywords}
+                onChange={(e) => {
+                  const updateNode = (nodes: BranchNode[]): BranchNode[] => {
+                    return nodes.map(n => {
+                      if (n.id === node.id) {
+                        return { ...n, keywords: e.target.value };
+                      }
+                      if (n.children.length > 0) {
+                        return { ...n, children: updateNode(n.children) };
+                      }
+                      return n;
+                    });
+                  };
+                  setBranchTree(prev => updateNode(prev));
+                }}
+              />
+            </div>
+            <div className="faq-form-group">
+              <label>Вопрос</label>
+              <input
+                type="text"
+                value={node.question}
+                onChange={(e) => {
+                  const updateNode = (nodes: BranchNode[]): BranchNode[] => {
+                    return nodes.map(n => {
+                      if (n.id === node.id) {
+                        return { ...n, question: e.target.value };
+                      }
+                      if (n.children.length > 0) {
+                        return { ...n, children: updateNode(n.children) };
+                      }
+                      return n;
+                    });
+                  };
+                  setBranchTree(prev => updateNode(prev));
+                }}
+              />
+            </div>
+            <div className="faq-form-group">
+              <label>Ответ</label>
+              <textarea
+                value={node.answer}
+                onChange={(e) => {
+                  const updateNode = (nodes: BranchNode[]): BranchNode[] => {
+                    return nodes.map(n => {
+                      if (n.id === node.id) {
+                        return { ...n, answer: e.target.value };
+                      }
+                      if (n.children.length > 0) {
+                        return { ...n, children: updateNode(n.children) };
+                      }
+                      return n;
+                    });
+                  };
+                  setBranchTree(prev => updateNode(prev));
+                }}
+                rows={3}
+              />
+            </div>
+
+            {/* Секция для кнопок уточнения */}
+            <div className="faq-form-group" style={{ marginTop: '16px' }}>
+              <label>
+                <i className="fas fa-buttons"></i> Кнопки для уточнения
+              </label>
+              
+              {/* Список существующих кнопок */}
+              {(node.buttons || []).length > 0 && (
+                <div style={{ 
+                  display: 'flex', 
+                  flexWrap: 'wrap', 
+                  gap: '8px', 
+                  marginBottom: '12px',
+                  padding: '8px',
+                  backgroundColor: 'var(--search-bg)',
+                  borderRadius: '12px'
+                }}>
+                  {node.buttons?.map((button, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        backgroundColor: 'white',
+                        border: '1px solid var(--border-light)',
+                        borderRadius: '20px',
+                        fontSize: '0.9rem'
+                      }}
+                    >
+                      <span>{button.text}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeButtonFromNode(node.id, idx)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: '#d32f2f',
+                          padding: '2px'
+                        }}
+                      >
+                        <i className="fas fa-times"></i>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Добавление новой кнопки */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Текст кнопки..."
+                  value={node.newButtonText || ''}
+                  onChange={(e) => {
+                    const updateNode = (nodes: BranchNode[]): BranchNode[] => {
+                      return nodes.map(n => {
+                        if (n.id === node.id) {
+                          return { ...n, newButtonText: e.target.value };
+                        }
+                        if (n.children.length > 0) {
+                          return { ...n, children: updateNode(n.children) };
+                        }
+                        return n;
+                      });
+                    };
+                    setBranchTree(prev => updateNode(prev));
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '20px',
+                    border: '1px solid var(--border-light)',
+                    fontSize: '0.9rem'
+                  }}
+                />
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--primary"
+                  onClick={() => {
+                    if (node.newButtonText) {
+                      addButtonToNode(node.id, node.newButtonText);
+                    }
+                  }}
+                  style={{ padding: '8px 16px' }}
+                >
+                  Добавить
+                </button>
+              </div>
+              <small style={{ color: 'var(--ui-dark-gray)', marginTop: '4px', display: 'block' }}>
+                Кнопки появятся в чате как варианты для уточнения
+              </small>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+              <button
+                type="button"
+                className="admin-btn admin-btn--primary"
+                onClick={() => updateBranchNode(node)}
+              >
+                Сохранить
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn--secondary"
+                onClick={() => {
+                  const updateNode = (nodes: BranchNode[]): BranchNode[] => {
+                    return nodes.map(n => {
+                      if (n.id === node.id) {
+                        return { ...n, isEditing: false };
+                      }
+                      if (n.children.length > 0) {
+                        return { ...n, children: updateNode(n.children) };
+                      }
+                      return n;
+                    });
+                  };
+                  setBranchTree(prev => updateNode(prev));
+                }}
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        ) : node.isAdding ? (
+          // Режим добавления новой ветки
+          <div>
+            <div className="faq-form-group">
+              <label>Ключевые слова для новой ветки</label>
+              <input
+                type="text"
+                placeholder="продолжение, уточнение"
+                onChange={(e) => {
+                  const updateNode = (nodes: BranchNode[]): BranchNode[] => {
+                    return nodes.map(n => {
+                      if (n.id === node.id) {
+                        return {
+                          ...n,
+                          newChild: {
+                            ...(n.newChild || { keywords: '', question: '', answer: '' }),
+                            keywords: e.target.value
+                          }
+                        };
+                      }
+                      if (n.children.length > 0) {
+                        return { ...n, children: updateNode(n.children) };
+                      }
+                      return n;
+                    });
+                  };
+                  setBranchTree(prev => updateNode(prev));
+                }}
+              />
+            </div>
+            <div className="faq-form-group">
+              <label>Вопрос для новой ветки</label>
+              <input
+                type="text"
+                placeholder="Уточните, пожалуйста"
+                onChange={(e) => {
+                  const updateNode = (nodes: BranchNode[]): BranchNode[] => {
+                    return nodes.map(n => {
+                      if (n.id === node.id) {
+                        return {
+                          ...n,
+                          newChild: {
+                            ...(n.newChild || { keywords: '', question: '', answer: '' }),
+                            question: e.target.value
+                          }
+                        };
+                      }
+                      if (n.children.length > 0) {
+                        return { ...n, children: updateNode(n.children) };
+                      }
+                      return n;
+                    });
+                  };
+                  setBranchTree(prev => updateNode(prev));
+                }}
+              />
+            </div>
+            <div className="faq-form-group">
+              <label>Ответ для новой ветки</label>
+              <textarea
+                placeholder="Ответ бота..."
+                rows={3}
+                onChange={(e) => {
+                  const updateNode = (nodes: BranchNode[]): BranchNode[] => {
+                    return nodes.map(n => {
+                      if (n.id === node.id) {
+                        return {
+                          ...n,
+                          newChild: {
+                            ...(n.newChild || { keywords: '', question: '', answer: '' }),
+                            answer: e.target.value
+                          }
+                        };
+                      }
+                      if (n.children.length > 0) {
+                        return { ...n, children: updateNode(n.children) };
+                      }
+                      return n;
+                    });
+                  };
+                  setBranchTree(prev => updateNode(prev));
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <button
+                type="button"
+                className="admin-btn admin-btn--primary"
+                onClick={() => {
+                  const newChild = node.newChild;
+                  if (newChild?.keywords && newChild?.question && newChild?.answer) {
+                    addBranchNode(node.id, newChild.keywords, newChild.question, newChild.answer);
+                  } else {
+                    alert('Заполните все поля');
+                  }
+                }}
+              >
+                Создать
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn--secondary"
+                onClick={() => {
+                  const updateNode = (nodes: BranchNode[]): BranchNode[] => {
+                    return nodes.map(n => {
+                      if (n.id === node.id) {
+                        return { ...n, isAdding: false, newChild: undefined };
+                      }
+                      if (n.children.length > 0) {
+                        return { ...n, children: updateNode(n.children) };
+                      }
+                      return n;
+                    });
+                  };
+                  setBranchTree(prev => updateNode(prev));
+                }}
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        ) : (
+          // Режим просмотра
+          <div>
+            <div style={{ marginBottom: '8px' }}>
+              <strong>Ключевые слова:</strong> {node.keywords}
+            </div>
+            <div style={{ marginBottom: '8px' }}>
+              <strong>Вопрос:</strong> {node.question}
+            </div>
+            <div style={{ marginBottom: '8px' }}>
+              <strong>Ответ:</strong> {node.answer}
+            </div>
+            {(node.buttons || []).length > 0 && (
+              <div style={{ marginTop: '12px' }}>
+                <strong style={{ fontSize: '0.9rem', color: 'var(--whatsapp-teal)' }}>
+                  <i className="fas fa-buttons"></i> Кнопки:
+                </strong>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                  {node.buttons?.map((button, idx) => (
+                    <span
+                      key={idx}
+                      style={{
+                        padding: '4px 12px',
+                        backgroundColor: 'var(--whatsapp-teal)',
+                        color: 'white',
+                        borderRadius: '20px',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      {button.text}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {node.children.map(child => renderBranchNode(child, level + 1))}
+      </div>
+    );
+  };
+
+  if (loading) return <div className="loading">Загрузка...</div>;
+
+  return (
+    <div className="admin-faq">
+      <div className="faq-admin-container" style={{ display: 'flex', height: '100%' }}>
+
+        {/* Левая колонка - категории */}
+        <div className="faq-tree" style={{ width: '300px', borderRight: '1px solid var(--border-light)' }}>
+          <div className="faq-tree__header" style={{ padding: '16px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="faq-tree__title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <i className="fas fa-folder-tree"></i>
+              <span>Категории</span>
+            </div>
+            <button
+              className="admin-btn admin-btn--primary"
+              style={{ padding: '8px 12px' }}
+              onClick={() => setShowCategoryModal(true)}
+            >
+              <i className="fas fa-plus"></i>
+            </button>
+          </div>
+
+          <div className="faq-tree__content" style={{ padding: '8px 0', overflowY: 'auto', height: 'calc(100% - 70px)' }}>
+            {categories.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--ui-dark-gray)' }}>
+                <i className="fas fa-folder-open" style={{ fontSize: '2rem', marginBottom: '8px' }}></i>
+                <p>Нет категорий</p>
+                <p style={{ fontSize: '0.9rem' }}>Создайте первую категорию</p>
+              </div>
+            ) : (
+              categories.map(cat => (
+                <div
+                  key={cat.id}
+                  className={`tree-item__row ${selectedCategory?.id === cat.id ? 'tree-item__row--selected' : ''}`}
+                  style={{
+                    padding: '12px 16px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    backgroundColor: selectedCategory?.id === cat.id ? 'var(--hover-bg)' : 'transparent'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', flex: 1 }} onClick={() => handleCategoryClick(cat)}>
+                    <i className="fas fa-folder" style={{ color: 'var(--whatsapp-teal)', marginRight: '12px' }}></i>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 500 }}>{cat.name}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--ui-dark-gray)' }}>{cat.count} {cat.count === 1 ? 'вопрос' : 'вопросов'}</div>
+                    </div>
+                  </div>
+                  <button
+                    className="tree-item__menu"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.7 }}
+                    onClick={() => handleDeleteCategory(cat.id)}
+                  >
+                    <i className="fas fa-trash" style={{ color: '#d32f2f' }}></i>
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Правая колонка - вопросы */}
+        <div className="faq-content" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          {selectedCategory ? (
+            <>
+              <div className="faq-content__header" style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid var(--border-light)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div className="faq-content__title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fas fa-folder-open" style={{ color: 'var(--whatsapp-teal)' }}></i>
+                  <span style={{ fontWeight: 600 }}>{selectedCategory.name}</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--ui-dark-gray)', marginLeft: '8px' }}>
+                    {questions.length} {questions.length === 1 ? 'вопрос' : 'вопросов'}
+                  </span>
+                </div>
+                <button
+                  className="admin-btn admin-btn--primary"
+                  onClick={() => setShowQuestionModal(true)}
+                >
+                  <i className="fas fa-plus"></i> Добавить вопрос
+                </button>
+              </div>
+
+              <div className="faq-content__list" style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+                {questions.length === 0 ? (
+                  <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--ui-dark-gray)' }}>
+                    <i className="fas fa-question-circle" style={{ fontSize: '3rem', marginBottom: '12px' }}></i>
+                    <h3>Нет вопросов</h3>
+                    <p>Добавьте первый вопрос в категорию "{selectedCategory.name}"</p>
+                  </div>
+                ) : (
+                  questions.map(q => (
+                    <div 
+                      key={q.id} 
+                      className="faq-question-item" 
+                      onClick={() => handleQuestionClick(q)}
+                      style={{
+                        padding: '16px 20px',
+                        borderBottom: '1px solid var(--border-light)',
+                        transition: 'background-color 0.2s',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <i className="fas fa-question-circle" style={{ color: 'var(--whatsapp-teal)' }}></i>
+                            {q.question}
+                          </div>
+                          <div style={{ color: 'var(--text-secondary)', marginBottom: '8px', fontSize: '0.95rem' }}>
+                            {q.answer.length > 150 ? q.answer.substring(0, 150) + '...' : q.answer}
+                          </div>
+                          {q.buttons && q.buttons.length > 0 && (
+                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                              {q.buttons.map((btn, idx) => (
+                                <span key={idx} style={{
+                                  fontSize: '0.7rem',
+                                  padding: '2px 8px',
+                                  backgroundColor: 'var(--search-bg)',
+                                  borderRadius: '12px',
+                                  color: 'var(--whatsapp-teal)'
+                                }}>
+                                  {btn.text}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {q.hasChildren && (
+                          <div 
+                            className="faq-question-item__branch-icon"
+                            style={{
+                              marginLeft: '12px',
+                              color: 'var(--whatsapp-green)',
+                              fontSize: '1.1rem'
+                            }}
+                          >
+                            <i className="fas fa-code-branch"></i>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          ) : (
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--ui-dark-gray)',
+              textAlign: 'center'
+            }}>
+              <div>
+                <i className="fas fa-arrow-left" style={{ fontSize: '3rem', marginBottom: '12px' }}></i>
+                <h3>Выберите категорию</h3>
+                <p>Нажмите на категорию слева, чтобы увидеть вопросы</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Модальное окно для создания категории */}
+      {showCategoryModal && (
+        <div className="faq-modal">
+          <div className="faq-modal__content" style={{ maxWidth: '400px' }}>
+            <div className="faq-modal__header">
+              <div className="faq-modal__title">
+                <i className="fas fa-folder"></i> Новая категория
+              </div>
+              <div className="faq-modal__close" onClick={() => setShowCategoryModal(false)}>
+                <i className="fas fa-times"></i>
+              </div>
+            </div>
+            <div className="faq-modal__body">
+              <div className="faq-form-group">
+                <label>Название категории</label>
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Например: Отпуска"
+                  autoFocus
+                />
+              </div>
+              <div className="faq-form-actions" style={{ marginTop: '20px' }}>
+                <button
+                  className="faq-form-actions__save"
+                  onClick={handleAddCategory}
+                  disabled={!newCategoryName.trim()}
+                >
+                  Создать
+                </button>
+                <button
+                  className="faq-form-actions__cancel"
+                  onClick={() => setShowCategoryModal(false)}
+                >
+                  Отмена
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно для создания родительского вопроса */}
+      {showQuestionModal && (
+        <div className="faq-modal">
+          <div className="faq-modal__content" style={{ maxWidth: '600px' }}>
+            <div className="faq-modal__header">
+              <div className="faq-modal__title">
+                <i className="fas fa-question-circle"></i>
+                Новый вопрос в категории "{selectedCategory?.name}"
+              </div>
+              <div className="faq-modal__close" onClick={() => setShowQuestionModal(false)}>
+                <i className="fas fa-times"></i>
+              </div>
+            </div>
+
+            <div className="faq-modal__body">
+              <form onSubmit={handleAddQuestion} className="faq-form">
+                <div className="faq-form-group">
+                  <label>Ключевые слова *</label>
+                  <input
+                    type="text"
+                    value={newQuestionData.keywords}
+                    onChange={(e) => setNewQuestionData({...newQuestionData, keywords: e.target.value})}
+                    placeholder="отпуск, отдых, отгул"
+                    required
+                  />
+                </div>
+
+                <div className="faq-form-group">
+                  <label>Вопрос *</label>
+                  <input
+                    type="text"
+                    value={newQuestionData.question}
+                    onChange={(e) => setNewQuestionData({...newQuestionData, question: e.target.value})}
+                    placeholder="Как оформить отпуск?"
+                    required
+                  />
+                </div>
+
+                <div className="faq-form-group">
+                  <label>Ответ *</label>
+                  <textarea
+                    value={newQuestionData.answer}
+                    onChange={(e) => setNewQuestionData({...newQuestionData, answer: e.target.value})}
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                <div className="faq-form-actions">
+                  <button type="submit" className="faq-form-actions__save">
+                    Создать
+                  </button>
+                  <button type="button" className="faq-form-actions__cancel" onClick={() => setShowQuestionModal(false)}>
+                    Отмена
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно для просмотра и редактирования ветки */}
+      {showBranchModal && selectedRootQuestion && (
+        <div className="faq-modal">
+          <div className="faq-modal__content" style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="faq-modal__header">
+              <div className="faq-modal__title">
+                <i className="fas fa-code-branch"></i>
+                Ветка: {selectedRootQuestion.question}
+              </div>
+              <div className="faq-modal__close" onClick={() => setShowBranchModal(false)}>
+                <i className="fas fa-times"></i>
+              </div>
+            </div>
+
+            <div className="faq-modal__body">
+              {branchTree.map(node => renderBranchNode(node))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно для редактирования вопроса без ветки */}
+      {showEditModal && editingQuestion && (
+        <div className="faq-modal">
+          <div className="faq-modal__content" style={{ maxWidth: '600px' }}>
+            <div className="faq-modal__header">
+              <div className="faq-modal__title">
+                <i className="fas fa-pen"></i>
+                Редактировать вопрос
+              </div>
+              <div className="faq-modal__close" onClick={() => setShowEditModal(false)}>
+                <i className="fas fa-times"></i>
+              </div>
+            </div>
+
+            <div className="faq-modal__body">
+              <form onSubmit={handleUpdateQuestion} className="faq-form">
+                <div className="faq-form-group">
+                  <label>Ключевые слова *</label>
+                  <input
+                    type="text"
+                    value={editingQuestion.keywords}
+                    onChange={(e) => setEditingQuestion({...editingQuestion, keywords: e.target.value})}
+                    required
+                  />
+                </div>
+
+                <div className="faq-form-group">
+                  <label>Вопрос *</label>
+                  <input
+                    type="text"
+                    value={editingQuestion.question || ''}
+                    onChange={(e) => setEditingQuestion({...editingQuestion, question: e.target.value})}
+                    required
+                  />
+                </div>
+
+                <div className="faq-form-group">
+                  <label>Ответ *</label>
+                  <textarea
+                    value={editingQuestion.answer}
+                    onChange={(e) => setEditingQuestion({...editingQuestion, answer: e.target.value})}
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                <div className="faq-form-actions">
+                  <button type="submit" className="faq-form-actions__save">
+                    Сохранить
+                  </button>
+                  <button type="button" className="faq-form-actions__cancel" onClick={() => setShowEditModal(false)}>
+                    Отмена
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AdminFaq;

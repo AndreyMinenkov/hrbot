@@ -1,0 +1,490 @@
+/*---------------------------
+  Dashboard (Главная панель)
+  В стиле WhatsApp - список чатов/диалогов
+----------------------------*/
+.dashboard-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-default);
+}
+
+/*---------------------------
+  Шапка как в WhatsApp
+----------------------------*/
+.dashboard-header {
+  background-color: var(--whatsapp-teal);
+  color: white;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-md);
+  min-height: 60px;
+}
+
+.dashboard-header__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dashboard-header__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, var(--whatsapp-green-medium), var(--whatsapp-teal));
+  cursor: pointer;
+  position: relative;
+}
+
+.dashboard-header__avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.dashboard-header__title {
+  font-weight: 600;
+  font-size: 1.2rem;
+}
+
+.dashboard-header__icons {
+  display: flex;
+  gap: 20px;
+}
+
+.dashboard-header__icons i {
+  font-size: 1.3rem;
+  opacity: 0.9;
+  transition: opacity var(--transition-fast);
+  cursor: pointer;
+}
+
+.dashboard-header__icons i:hover {
+  opacity: 1;
+}
+
+/*---------------------------
+  Поиск (Search Bar) как в WhatsApp
+----------------------------*/
+.dashboard-search {
+  background-color: white;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.search-bar {
+  background-color: var(--search-bg);
+  border-radius: 24px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ui-dark-gray);
+  transition: background-color var(--transition-fast);
+}
+
+.search-bar:focus-within {
+  background-color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.search-bar i {
+  font-size: 0.9rem;
+  opacity: 0.7;
+  color: var(--icon-color);
+}
+
+.search-bar input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  font-size: 0.95rem;
+}
+
+.search-bar input::placeholder {
+  color: #9ca5ab;
+}
+
+/*---------------------------
+  Вкладки (Tabs) как в WhatsApp
+  Чаты, Статус, Звонки
+----------------------------*/
+.dashboard-tabs {
+  display: flex;
+  background-color: white;
+  border-bottom: 1px solid var(--border-light);
+  padding: 0 12px;
+}
+
+.dashboard-tab {
+  flex: 1;
+  text-align: center;
+  padding: 12px 0;
+  font-weight: 500;
+  color: var(--ui-dark-gray);
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  letter-spacing: 0.5px;
+  border-bottom: 3px solid transparent;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.dashboard-tab:hover {
+  color: var(--text-primary);
+}
+
+.dashboard-tab--active {
+  color: var(--whatsapp-teal);
+  border-bottom: 3px solid var(--whatsapp-teal);
+  font-weight: 600;
+}
+
+/*---------------------------
+  Список чатов (Chat List)
+  Бесконечный список переписок
+----------------------------*/
+.dashboard-list {
+  flex: 1;
+  overflow-y: auto;
+  background-color: white;
+}
+
+/* Элемент чата */
+.chat-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-light);
+  transition: background-color var(--transition-fast);
+  cursor: pointer;
+}
+
+.chat-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.chat-item__avatar {
+  width: 49px;
+  height: 49px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, var(--ui-dark-gray), var(--whatsapp-teal));
+  flex-shrink: 0;
+  position: relative;
+}
+
+.chat-item__avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Индикатор онлайн */
+.chat-item__online {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  background-color: var(--whatsapp-green);
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+.chat-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-item__name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.chat-item__name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-item__time {
+  font-size: 0.75rem;
+  color: var(--ui-dark-gray);
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.chat-item__message-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chat-item__last-message {
+  font-size: 0.9rem;
+  color: var(--ui-dark-gray);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+/* Статус сообщения (галочки) */
+.chat-item__status {
+  font-size: 0.8rem;
+  margin-right: 4px;
+}
+
+.chat-item__status--sent::before {
+  content: "✓";
+  color: var(--ui-dark-gray);
+}
+
+.chat-item__status--delivered::before {
+  content: "✓✓";
+  color: var(--ui-dark-gray);
+}
+
+.chat-item__status--read::before {
+  content: "✓✓";
+  color: var(--whatsapp-green);
+}
+
+/* Бейдж непрочитанных */
+.chat-item__badge {
+  background-color: var(--badge-bg);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  margin-left: 8px;
+}
+
+/*---------------------------
+  Статус (Status Tab)
+  Кружки с обводкой
+----------------------------*/
+.status-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 15px;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+}
+
+.status-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.status-item__avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #cfd6da;
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Круг с градиентной обводкой для нового статуса */
+.status-item__avatar--new {
+  padding: 3px;
+  background: linear-gradient(45deg, var(--whatsapp-green), var(--whatsapp-teal));
+}
+
+.status-item__avatar--new img {
+  border: 2px solid white;
+}
+
+/* Обычный круг для просмотренного статуса */
+.status-item__avatar--viewed {
+  border: 2px solid #d1d7db;
+}
+
+.status-item__avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.status-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.status-item__name {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+
+.status-item__time {
+  font-size: 0.8rem;
+  color: var(--ui-dark-gray);
+}
+
+/*---------------------------
+  Звонки (Calls Tab)
+----------------------------*/
+.call-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+}
+
+.call-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.call-item__avatar {
+  width: 49px;
+  height: 49px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, var(--ui-dark-gray), var(--whatsapp-teal));
+  flex-shrink: 0;
+}
+
+.call-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.call-item__name {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+
+.call-item__meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--ui-dark-gray);
+}
+
+.call-item__icon--incoming {
+  color: var(--whatsapp-green);
+}
+
+.call-item__icon--outgoing {
+  color: var(--whatsapp-teal);
+}
+
+.call-item__icon--missed {
+  color: #f15c6f;
+}
+
+.call-item__time {
+  font-size: 0.75rem;
+  color: var(--ui-dark-gray);
+}
+
+/*---------------------------
+  Адаптация для мобильных
+----------------------------*/
+@media (max-width: 768px) {
+  .dashboard-header__title {
+    font-size: 1.1rem;
+  }
+  
+  .dashboard-header__icons {
+    gap: 15px;
+  }
+  
+  .dashboard-header__icons i {
+    font-size: 1.2rem;
+  }
+  
+  .chat-item__avatar {
+    width: 45px;
+    height: 45px;
+  }
+  
+  .chat-item__name {
+    font-size: 0.95rem;
+  }
+  
+  .chat-item__last-message {
+    font-size: 0.85rem;
+  }
+}
+
+/* PWA оптимизации */
+@media (display-mode: standalone) {
+  .dashboard-header {
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+}
+
+/* Выпадающее меню в шапке дашборда */
+.dashboard-header__icons {
+  position: relative;
+}
+
+.dashboard-header__dropdown {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: var(--shadow-dropdown);
+  min-width: 200px;
+  z-index: 1000;
+  animation: menu-pop 0.2s ease;
+}
+
+@keyframes menu-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Для мобильных устройств */
+@media (max-width: 768px) {
+  .dashboard-header__dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    animation: slide-up 0.3s ease;
+  }
+
+  @keyframes slide-up {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+}

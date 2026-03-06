@@ -1,0 +1,255 @@
+/*---------------------------
+  Admin Layout (Админ-панель)
+  Горизонтальный хедер на всю ширину
+----------------------------*/
+.admin-layout {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-default);
+}
+
+/*---------------------------
+  Горизонтальный хедер
+----------------------------*/
+.admin-header {
+  background-color: var(--whatsapp-teal);
+  color: white;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-md);
+  height: 64px;
+  z-index: 10;
+}
+
+.admin-header__left {
+  display: flex;
+  align-items: center;
+}
+
+.admin-header__logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 1.2rem;
+}
+
+.admin-header__logo i {
+  font-size: 1.4rem;
+}
+
+/* Навигация по центру */
+.admin-header__nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  flex: 1;
+  justify-content: center;
+}
+
+.admin-header__nav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  color: white;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.95rem;
+  border-radius: 30px;
+  transition: background-color var(--transition-fast);
+  height: 40px;
+}
+
+.admin-header__nav-link i {
+  font-size: 1.1rem;
+}
+
+.admin-header__nav-link:hover {
+  background-color: rgba(255,255,255,0.1);
+}
+
+.admin-header__nav-link--active {
+  background-color: rgba(255,255,255,0.2);
+  font-weight: 600;
+}
+
+/* Правая часть с пользователем */
+.admin-header__right {
+  position: relative;
+}
+
+.admin-header__user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.admin-header__user:hover {
+  background-color: rgba(255,255,255,0.1);
+}
+
+.admin-header__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--whatsapp-teal);
+  font-size: 1.2rem;
+  overflow: hidden;
+}
+
+.admin-header__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-header__username {
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+/* Выпадающее меню пользователя */
+.admin-header__dropdown {
+  position: absolute;
+  top: 55px;
+  right: 0;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: var(--shadow-dropdown);
+  min-width: 200px;
+  z-index: 1000;
+  animation: menu-pop 0.2s ease;
+}
+
+@keyframes menu-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.dropdown-item {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.dropdown-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.dropdown-item:first-child {
+  border-radius: 12px 12px 0 0;
+}
+
+.dropdown-item:last-child {
+  border-radius: 0 0 12px 12px;
+}
+
+.dropdown-item i {
+  width: 20px;
+  color: var(--icon-color);
+  font-size: 1.1rem;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: var(--border-light);
+  margin: 4px 0;
+}
+
+/*---------------------------
+  Основной контент
+----------------------------*/
+.admin-content {
+  flex: 1;
+  overflow-y: auto;
+  background-color: var(--background-default);
+  position: relative;
+}
+
+/*---------------------------
+  Адаптация для мобильных
+----------------------------*/
+@media (max-width: 1024px) {
+  .admin-header__nav-link span {
+    display: none;
+  }
+  
+  .admin-header__nav-link {
+    padding: 8px 12px;
+  }
+  
+  .admin-header__nav-link i {
+    font-size: 1.3rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-header {
+    padding: 0 16px;
+  }
+  
+  .admin-header__logo span {
+    display: none;
+  }
+  
+  .admin-header__username {
+    display: none;
+  }
+  
+  .admin-header__dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    animation: slide-up 0.3s ease;
+  }
+
+  @keyframes slide-up {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+}
+
+/* PWA оптимизации */
+@media (display-mode: standalone) {
+  .admin-header {
+    padding-top: max(0px, env(safe-area-inset-top));
+    padding-left: max(24px, env(safe-area-inset-left));
+    padding-right: max(24px, env(safe-area-inset-right));
+  }
+  
+  .admin-content {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

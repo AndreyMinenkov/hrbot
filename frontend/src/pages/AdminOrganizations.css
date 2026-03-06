@@ -1,0 +1,668 @@
+/*---------------------------
+  Admin Organizations (Управление организациями)
+  В стиле WhatsApp - список компаний/отделов
+----------------------------*/
+.admin-organizations {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+}
+
+/*---------------------------
+  Поиск по организациям
+  Как в WhatsApp
+----------------------------*/
+.organizations-search {
+  padding: 16px 20px;
+  background-color: white;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.search-bar {
+  background-color: var(--search-bg);
+  border-radius: 24px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ui-dark-gray);
+  transition: background-color var(--transition-fast);
+}
+
+.search-bar:focus-within {
+  background-color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.search-bar i {
+  font-size: 0.9rem;
+  color: var(--icon-color);
+}
+
+.search-bar input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  font-size: 0.95rem;
+}
+
+.search-bar input::placeholder {
+  color: #9ca5ab;
+}
+
+/*---------------------------
+  Статистика организаций
+  Как виджеты в WhatsApp Business
+----------------------------*/
+.org-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 16px 20px;
+  background-color: white;
+  border-bottom: 1px solid var(--border-light);
+}
+
+@media (max-width: 768px) {
+  .org-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.org-stat-card {
+  background: linear-gradient(135deg, var(--whatsapp-teal), var(--whatsapp-green-medium));
+  border-radius: 12px;
+  padding: 16px;
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.org-stat-card__title {
+  font-size: 0.75rem;
+  opacity: 0.9;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.org-stat-card__value {
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.org-stat-card__change {
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.9;
+}
+
+/*---------------------------
+  Список организаций
+  Как список чатов WhatsApp
+----------------------------*/
+.organizations-list {
+  flex: 1;
+  overflow-y: auto;
+  background-color: white;
+  padding: 8px 0;
+}
+
+.organization-item {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  gap: 16px;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  position: relative;
+}
+
+.organization-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.organization-item__icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: linear-gradient(45deg, var(--whatsapp-teal), var(--whatsapp-green-medium));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.organization-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.organization-item__name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.organization-item__name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.organization-item__date {
+  font-size: 0.75rem;
+  color: var(--ui-dark-gray);
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.organization-item__details {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.85rem;
+  color: var(--ui-dark-gray);
+  flex-wrap: wrap;
+}
+
+.organization-item__detail {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.organization-item__detail i {
+  font-size: 0.8rem;
+  color: var(--icon-color);
+}
+
+.organization-item__detail--highlight {
+  color: var(--whatsapp-teal);
+  font-weight: 500;
+}
+
+.organization-item__actions {
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.organization-item:hover .organization-item__actions {
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .organization-item__actions {
+    opacity: 1;
+  }
+}
+
+.org-action {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--icon-color);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.org-action:hover {
+  background-color: rgba(0,0,0,0.05);
+}
+
+.org-action--edit:hover {
+  color: var(--whatsapp-teal);
+}
+
+.org-action--delete:hover {
+  color: #d32f2f;
+}
+
+.org-action--users:hover {
+  color: var(--whatsapp-green);
+}
+
+/*---------------------------
+  Пустой список
+----------------------------*/
+.organizations-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--ui-dark-gray);
+  text-align: center;
+}
+
+.organizations-empty i {
+  font-size: 4rem;
+  color: var(--border-light);
+  margin-bottom: 20px;
+}
+
+.organizations-empty h3 {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.organizations-empty p {
+  font-size: 0.95rem;
+  max-width: 250px;
+}
+
+/*---------------------------
+  Модальное окно организации
+----------------------------*/
+.org-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(5px);
+}
+
+.org-modal__content {
+  background-color: white;
+  border-radius: 24px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-modal);
+  animation: modal-slide-up 0.3s ease;
+}
+
+@keyframes modal-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.org-modal__header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  background-color: white;
+  z-index: 10;
+}
+
+.org-modal__title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.org-modal__title i {
+  color: var(--whatsapp-teal);
+}
+
+.org-modal__close {
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--ui-dark-gray);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+}
+
+.org-modal__close:hover {
+  background-color: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.org-modal__body {
+  padding: 24px;
+}
+
+/*---------------------------
+  Форма организации
+----------------------------*/
+.org-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Логотип организации */
+.org-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.org-logo__preview {
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
+  background: linear-gradient(45deg, var(--whatsapp-teal), var(--whatsapp-green-medium));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 3rem;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+
+.org-logo__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.org-logo__overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.5rem;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.org-logo__preview:hover .org-logo__overlay {
+  opacity: 1;
+}
+
+.org-logo__upload {
+  font-size: 0.9rem;
+  color: var(--whatsapp-teal);
+  cursor: pointer;
+}
+
+/* Поля формы */
+.org-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.org-form-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ui-dark-gray);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.org-form-group label i {
+  color: var(--whatsapp-teal);
+}
+
+.org-form-group input,
+.org-form-group select,
+.org-form-group textarea {
+  padding: 12px 16px;
+  background-color: var(--search-bg);
+  border: 1px solid transparent;
+  border-radius: 16px;
+  font-size: 1rem;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+
+.org-form-group input:focus,
+.org-form-group select:focus,
+.org-form-group textarea:focus {
+  border-color: var(--whatsapp-teal);
+  background-color: white;
+  outline: none;
+}
+
+.org-form-group textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+/* Контактная информация */
+.org-contact-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .org-contact-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Статистика в форме */
+.org-stats-preview {
+  background-color: var(--search-bg);
+  border-radius: 16px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.org-stat-item {
+  text-align: center;
+}
+
+.org-stat-item__value {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--whatsapp-teal);
+  margin-bottom: 4px;
+}
+
+.org-stat-item__label {
+  font-size: 0.7rem;
+  color: var(--ui-dark-gray);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Действия формы */
+.org-form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.org-form-actions button {
+  flex: 1;
+  padding: 14px;
+  border-radius: 30px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: none;
+  font-size: 1rem;
+}
+
+.org-form-actions__save {
+  background-color: var(--whatsapp-teal);
+  color: white;
+}
+
+.org-form-actions__save:hover {
+  background-color: var(--whatsapp-green-medium);
+}
+
+.org-form-actions__delete {
+  background-color: #d32f2f;
+  color: white;
+}
+
+.org-form-actions__delete:hover {
+  background-color: #b71c1c;
+}
+
+.org-form-actions__cancel {
+  background-color: white;
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+}
+
+.org-form-actions__cancel:hover {
+  background-color: var(--hover-bg);
+}
+
+/*---------------------------
+  Список сотрудников организации
+  (как вложенный список)
+----------------------------*/
+.org-employees {
+  margin-top: 20px;
+  border-top: 1px solid var(--border-light);
+  padding-top: 16px;
+}
+
+.org-employees__title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.org-employees__count {
+  background-color: var(--search-bg);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: var(--ui-dark-gray);
+}
+
+.org-employee-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  gap: 12px;
+  border-bottom: 1px dashed var(--border-light);
+}
+
+.org-employee-item:last-child {
+  border-bottom: none;
+}
+
+.org-employee-item__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, var(--ui-dark-gray), var(--whatsapp-teal));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.1rem;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.org-employee-item__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.org-employee-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.org-employee-item__name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.org-employee-item__role {
+  font-size: 0.75rem;
+  color: var(--ui-dark-gray);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.org-employee-item__role i {
+  font-size: 0.7rem;
+  color: var(--whatsapp-teal);
+}
+
+/*---------------------------
+  Адаптация для мобильных
+----------------------------*/
+@media (max-width: 768px) {
+  .org-modal__content {
+    max-height: 95vh;
+    border-radius: 16px;
+  }
+  
+  .org-modal__body {
+    padding: 16px;
+  }
+  
+  .organization-item__details {
+    gap: 8px;
+  }
+}
+
+/* PWA оптимизации */
+@media (display-mode: standalone) {
+  .org-modal__content {
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+}

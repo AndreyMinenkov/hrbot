@@ -1,0 +1,706 @@
+/*---------------------------
+  Чат - Главный экран
+  Полная имитация WhatsApp интерфейса
+----------------------------*/
+.chat-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-default);
+}
+
+/*---------------------------
+  Шапка чата как в WhatsApp
+  Flex-бургер: аватар, имя, иконки
+----------------------------*/
+.chat-header {
+  background-color: var(--whatsapp-teal);
+  color: white;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+  min-height: 60px;
+}
+
+.chat-header__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.chat-header__back {
+  display: none;
+  font-size: 1.5rem;
+  color: white;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .chat-header__back {
+    display: block;
+  }
+}
+
+.chat-header__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, var(--whatsapp-green-medium), var(--whatsapp-teal));
+  flex-shrink: 0;
+}
+
+.chat-header__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-header__title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-header__subtitle {
+  font-size: 0.8rem;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-header__icons {
+  display: flex;
+  gap: 20px;
+}
+
+.chat-header__icons i {
+  font-size: 1.3rem;
+  opacity: 0.9;
+  transition: opacity var(--transition-fast);
+  cursor: pointer;
+}
+
+.chat-header__icons i:hover {
+  opacity: 1;
+}
+
+/*---------------------------
+  Окно чата с паттерном
+  Легендарный фон WhatsApp
+----------------------------*/
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 16px;
+  background-color: var(--background-chat);
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><path fill="%23e0d6cd" d="M0 0h32v32H0z"/><path fill="%23cfc6bc" d="M16 0h16v16H16zM0 16h16v16H0z"/></svg>');
+  background-repeat: repeat;
+  background-size: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/*---------------------------
+  Контейнер для сообщения
+  Выравнивание слева/справа
+----------------------------*/
+.message-wrapper {
+  display: flex;
+  width: 100%;
+}
+
+.message-wrapper--outgoing {
+  justify-content: flex-end;
+}
+
+.message-wrapper--incoming {
+  justify-content: flex-start;
+}
+
+/*---------------------------
+  Пузырек сообщения
+  С острым уголком как в WhatsApp
+----------------------------*/
+.message {
+  max-width: var(--message-max-width);
+  padding: 8px 12px;
+  border-radius: 12px;
+  position: relative;
+  word-wrap: break-word;
+  font-size: 0.95rem;
+  box-shadow: var(--shadow-sm);
+  display: inline-block;
+  animation: message-pop 0.2s ease;
+}
+
+@keyframes message-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Входящее сообщение (слева) */
+.message--incoming {
+  background-color: var(--bubble-incoming);
+  border-top-left-radius: 4px;
+  align-self: flex-start;
+}
+
+/* Исходящее сообщение (справа) */
+.message--outgoing {
+  background-color: var(--bubble-outgoing);
+  border-top-right-radius: 4px;
+  align-self: flex-end;
+}
+
+/* Медиа в сообщении (изображения, видео) */
+.message__media {
+  margin: -8px -12px 4px -8px;
+  max-width: 300px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.message__media img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Текст сообщения */
+.message__text {
+  line-height: 1.4;
+  margin-bottom: 4px;
+  white-space: pre-wrap;
+}
+
+/* Нижняя часть сообщения (время и статус) */
+.message__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--ui-dark-gray);
+  margin-top: 2px;
+}
+
+.message__time {
+  color: var(--ui-dark-gray);
+}
+
+/* Статус сообщения (галочки) */
+.message__status {
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.message__status--sent::before {
+  content: "✓";
+  color: var(--ui-dark-gray);
+}
+
+.message__status--delivered::before {
+  content: "✓✓";
+  color: var(--ui-dark-gray);
+}
+
+.message__status--read::before {
+  content: "✓✓";
+  color: var(--whatsapp-green);
+}
+
+/*---------------------------
+  Панель ввода сообщения (как в WhatsApp)
+  Приклеена к низу
+----------------------------*/
+.chat-footer {
+  background-color: #f0f2f4;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--border-light);
+  min-height: 62px;
+}
+
+.chat-footer__icon {
+  font-size: 1.5rem;
+  color: var(--icon-color);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.chat-footer__icon:hover {
+  color: var(--whatsapp-teal);
+  background-color: rgba(0,0,0,0.05);
+}
+
+.chat-footer__icon--active {
+  color: var(--whatsapp-teal);
+}
+
+.chat-footer__input-container {
+  flex: 1;
+  background-color: white;
+  border-radius: 24px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+}
+
+.chat-footer__input {
+  flex: 1;
+  padding: 10px 0;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  max-height: 100px;
+  resize: none;
+  line-height: 1.4;
+}
+
+.chat-footer__emoji {
+  font-size: 1.3rem;
+  color: var(--icon-color);
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+/*---------------------------
+  Индикатор набора сообщения (Typing)
+  Как в WhatsApp - три точки
+----------------------------*/
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 16px;
+  background-color: var(--bubble-incoming);
+  border-radius: 18px 18px 18px 4px;
+  width: fit-content;
+  margin-bottom: 8px;
+}
+
+.typing-indicator span {
+  width: 6px;
+  height: 6px;
+  background-color: var(--ui-dark-gray);
+  border-radius: 50%;
+  display: inline-block;
+  animation: typing 1.4s infinite ease-in-out both;
+}
+
+.typing-indicator span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typing {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.6;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/*---------------------------
+  Дата-разделитель (как в WhatsApp)
+  Плавающая метка с датой
+----------------------------*/
+.date-divider {
+  display: flex;
+  justify-content: center;
+  margin: 16px 0;
+  position: sticky;
+  top: 10px;
+  z-index: 5;
+}
+
+.date-divider span {
+  background-color: rgba(225, 225, 225, 0.95);
+  padding: 5px 12px;
+  border-radius: 100px;
+  font-size: 0.75rem;
+  color: var(--ui-dark-gray);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(5px);
+}
+
+/*---------------------------
+  Сообщения с цитированием
+----------------------------*/
+.message-quote {
+  border-left: 4px solid var(--whatsapp-teal);
+  padding-left: 8px;
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background-color: rgba(0,0,0,0.03);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+/*---------------------------
+  Адаптация для мобильных устройств
+----------------------------*/
+@media (max-width: 768px) {
+  .chat-header__title {
+    font-size: 1rem;
+  }
+  
+  .chat-header__subtitle {
+    font-size: 0.75rem;
+  }
+  
+  .message {
+    max-width: 85%;
+  }
+  
+  .chat-footer__icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.3rem;
+  }
+  
+  .chat-footer__input-container {
+    border-radius: 20px;
+    padding: 0 12px;
+  }
+}
+
+/* PWA оптимизации */
+@media (display-mode: standalone) {
+  .chat-header {
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+  
+  .chat-footer {
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+}
+
+/* Выпадающее меню в шапке чата */
+.chat-header__icons {
+  position: relative;
+}
+
+.chat-header__dropdown {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: var(--shadow-dropdown);
+  min-width: 200px;
+  z-index: 1000;
+  animation: menu-pop 0.2s ease;
+}
+
+@keyframes menu-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.dropdown-item {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.dropdown-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.dropdown-item:first-child {
+  border-radius: 12px 12px 0 0;
+}
+
+.dropdown-item:last-child {
+  border-radius: 0 0 12px 12px;
+}
+
+.dropdown-item i {
+  width: 20px;
+  color: var(--icon-color);
+  font-size: 1.1rem;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: var(--border-light);
+  margin: 4px 0;
+}
+
+/* Для мобильных устройств */
+@media (max-width: 768px) {
+  .chat-header__dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    animation: slide-up 0.3s ease;
+  }
+
+  @keyframes slide-up {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .dropdown-item {
+    padding: 16px;
+    justify-content: center;
+  }
+}
+
+/* Эмодзи-пикер */
+.emoji-picker-container {
+  position: absolute;
+  bottom: 60px;
+  right: 0;
+  z-index: 1000;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-dropdown);
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+  .emoji-picker-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 350px;
+    bottom: auto;
+    right: auto;
+  }
+}
+
+/* Настройка внешнего вида эмодзи-пикера под нашу тему */
+.react-emoji-kit {
+  --emoji-kit-color-border: var(--border-light);
+  --emoji-kit-color-background: white;
+  --emoji-kit-color-text: var(--text-primary);
+  --emoji-kit-color-hover: var(--hover-bg);
+  --emoji-kit-color-active: var(--whatsapp-teal);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.react-emoji-kit__skin-tone-picker {
+  background-color: var(--search-bg);
+}
+
+.react-emoji-kit__emoji:hover {
+  background-color: var(--hover-bg);
+  border-radius: 8px;
+}
+
+/*---------------------------
+  Кнопки в чате (для выбора вариантов)
+  Стилизованы под WhatsApp
+----------------------------*/
+.message-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  padding-left: 48px; /* Отступ, чтобы кнопки были под сообщением бота */
+  animation: buttons-pop 0.3s ease;
+}
+
+@keyframes buttons-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-button {
+  background-color: white;
+  border: 1px solid var(--whatsapp-teal);
+  color: var(--whatsapp-teal);
+  padding: 8px 16px;
+  border-radius: 24px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+  min-width: 60px;
+  text-align: center;
+}
+
+.message-button:hover {
+  background-color: var(--whatsapp-teal);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.message-button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.message-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Для мобильных устройств */
+@media (max-width: 768px) {
+  .message-buttons {
+    padding-left: 36px;
+    gap: 6px;
+  }
+
+  .message-button {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+}
+
+/* Темная тема (если будет) */
+@media (prefers-color-scheme: dark) {
+  .message-button {
+    background-color: var(--bubble-incoming);
+    border-color: var(--whatsapp-teal);
+    color: var(--whatsapp-teal);
+  }
+
+  .message-button:hover {
+    background-color: var(--whatsapp-teal);
+    color: white;
+  }
+}
+
+/* Кнопки в режиме PWA */
+@media (display-mode: standalone) {
+  .message-button {
+    padding: 10px 18px;
+  }
+}
+
+/*---------------------------
+  Отображение файлов в сообщениях
+----------------------------*/
+.message__file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 12px;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+}
+
+.message--outgoing .message__file {
+  background-color: rgba(220, 248, 198, 0.5);
+}
+
+.message__file-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--whatsapp-teal), var(--whatsapp-green-medium));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.2rem;
+}
+
+.message__file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.message__file-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.message__file-download {
+  background: none;
+  border: none;
+  color: var(--whatsapp-teal);
+  cursor: pointer;
+  padding: 4px 0;
+  font-size: 0.85rem;
+  text-align: left;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.message__file-download:hover {
+  text-decoration: underline;
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+  .message__file {
+    padding: 8px;
+  }
+  
+  .message__file-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+}

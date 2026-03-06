@@ -1,0 +1,132 @@
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_API_URL || 'https://31.130.155.16:8443/api';
+
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Интерцептор для добавления токена
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// ===== Аутентификация =====
+export const auth = {
+  login: (login: string, password: string) =>
+    api.post('/auth/login', { login, password }),
+  getMe: () =>
+    api.get('/auth/me'),
+};
+
+// ===== Профиль =====
+export const profile = {
+  getData: () =>
+    api.get('/profile/data'),
+  updateAvatar: (formData: FormData) =>
+    api.put('/profile/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+};
+
+// ===== Сотрудник (для дашборда) =====
+export const employee = {
+  getData: () =>
+    api.get('/employee/data'),
+};
+
+// ===== Организации =====
+export const organizations = {
+  getAll: () =>
+    api.get('/organizations'),
+  getById: (id: number) =>
+    api.get(`/organizations/${id}`),
+  create: (data: any) =>
+    api.post('/organizations', data),
+  update: (id: number, data: any) =>
+    api.put(`/organizations/${id}`, data),
+  delete: (id: number) =>
+    api.delete(`/organizations/${id}`),
+};
+
+// ===== FAQ (пользовательская часть) =====
+export const faq = {
+  search: (query: string) =>
+    api.get(`/faq/search?query=${encodeURIComponent(query)}`),
+  getCategories: () =>
+    api.get('/faq/categories'),
+  getById: (id: number) =>
+    api.get(`/faq/${id}`),
+};
+
+// ===== Статистика =====
+export const stats = {
+  getAdmin: () =>
+    api.get('/stats/admin'),
+  saveChat: (query: string, response: string) =>
+    api.post('/stats/chat/save', { query, response }),
+};
+
+// ===== Документы =====
+export const documents = {
+  getCategories: () =>
+    api.get('/documents/categories'),
+  getByCategory: (category: string) =>
+    api.get(`/documents/category/${encodeURIComponent(category)}`),
+  download: (id: number) =>
+    api.get(`/documents/download/${id}`, { responseType: 'blob' }),
+  getAllAdmin: () =>
+    api.get('/documents/admin/all'),
+};
+
+// ===== Админка: FAQ =====
+export const adminFaq = {
+  getAll: () =>
+    api.get('/admin/faq'),
+  getById: (id: number) =>
+    api.get(`/admin/faq/${id}`),
+  getRoot: () =>
+    api.get('/admin/faq/root'),
+  getChildren: (id: number) =>
+    api.get(`/admin/faq/${id}/children`),
+  create: (data: FormData) =>
+    api.post('/admin/faq', data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  update: (id: number, data: FormData) =>
+    api.put(`/admin/faq/${id}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  delete: (id: number) =>
+    api.delete(`/admin/faq/${id}`),
+};
+
+// ===== Админка: Пользователи =====
+export const adminUsers = {
+  getAll: () =>
+    api.get('/admin/users'),
+  getById: (id: number) =>
+    api.get(`/admin/users/${id}`),
+  create: (data: any) =>
+    api.post('/admin/users', data),
+  update: (id: number, data: any) =>
+    api.put(`/admin/users/${id}`, data),
+  delete: (id: number) =>
+    api.delete(`/admin/users/${id}`),
+  resetPassword: (id: number, newPassword: string) =>
+    api.post(`/admin/users/${id}/reset-password`, { newPassword }),
+};
+
+export default api;

@@ -1,0 +1,369 @@
+/*---------------------------
+  Навигация в стиле WhatsApp
+  Нижнее меню для мобильных и боковое для десктопа
+----------------------------*/
+
+/*---------------------------
+  Нижняя навигация (мобильная)
+  Как в WhatsApp - иконки с подписями
+----------------------------*/
+.bottom-nav {
+  display: none;
+  background-color: white;
+  border-top: 1px solid var(--border-light);
+  padding: 8px 12px;
+  justify-content: space-around;
+  align-items: center;
+  box-shadow: 0 -2px 5px rgba(0,0,0,0.03);
+  z-index: 10;
+}
+
+@media (max-width: 768px) {
+  .bottom-nav {
+    display: flex;
+  }
+}
+
+.bottom-nav__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--ui-dark-gray);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  flex: 1;
+  padding: 4px 0;
+  border-radius: 8px;
+}
+
+.bottom-nav__item i {
+  font-size: 1.5rem;
+}
+
+.bottom-nav__item span {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.bottom-nav__item--active {
+  color: var(--whatsapp-teal);
+}
+
+.bottom-nav__item:hover {
+  background-color: var(--hover-bg);
+}
+
+/* Бейдж уведомлений на иконке */
+.bottom-nav__badge {
+  position: relative;
+}
+
+.bottom-nav__badge::after {
+  content: attr(data-count);
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  background-color: var(--badge-bg);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 600;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid white;
+}
+
+/*---------------------------
+  Боковая навигация (десктоп)
+  Как в WhatsApp Web
+----------------------------*/
+.side-nav {
+  width: 280px;
+  background-color: white;
+  border-right: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  .side-nav {
+    display: none;
+  }
+}
+
+/* Шапка боковой навигации */
+.side-nav__header {
+  background-color: var(--whatsapp-teal);
+  padding: 20px 16px;
+  color: white;
+}
+
+.side-nav__user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.side-nav__avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, var(--whatsapp-green-medium), var(--whatsapp-teal));
+  position: relative;
+  cursor: pointer;
+}
+
+.side-nav__avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.side-nav__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.side-nav__name {
+  font-weight: 600;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.side-nav__status {
+  font-size: 0.8rem;
+  opacity: 0.9;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.side-nav__status i {
+  font-size: 0.7rem;
+}
+
+/* Поиск в боковой панели */
+.side-nav__search {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.side-nav__search-bar {
+  background-color: var(--search-bg);
+  border-radius: 24px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ui-dark-gray);
+}
+
+.side-nav__search-bar i {
+  font-size: 0.9rem;
+  color: var(--icon-color);
+}
+
+.side-nav__search-bar input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+/* Меню навигации */
+.side-nav__menu {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+
+.side-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  position: relative;
+}
+
+.side-nav__item:hover {
+  background-color: var(--hover-bg);
+}
+
+.side-nav__item--active {
+  background-color: var(--hover-bg);
+  position: relative;
+}
+
+.side-nav__item--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: var(--whatsapp-teal);
+}
+
+.side-nav__item i {
+  font-size: 1.3rem;
+  color: var(--icon-color);
+  width: 24px;
+  text-align: center;
+}
+
+.side-nav__item--active i {
+  color: var(--whatsapp-teal);
+}
+
+.side-nav__item span {
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.side-nav__badge {
+  background-color: var(--badge-bg);
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  margin-left: auto;
+}
+
+/* Разделитель */
+.side-nav__divider {
+  height: 1px;
+  background-color: var(--border-light);
+  margin: 12px 0;
+}
+
+/* Футер боковой навигации */
+.side-nav__footer {
+  border-top: 1px solid var(--border-light);
+  padding: 12px 16px;
+}
+
+.side-nav__footer-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.side-nav__footer-item:hover {
+  color: var(--whatsapp-teal);
+}
+
+.side-nav__footer-item i {
+  font-size: 1.2rem;
+  width: 24px;
+  text-align: center;
+}
+
+.side-nav__footer-item span {
+  font-size: 0.9rem;
+}
+
+/*---------------------------
+  Комбинированный макет
+  Для страниц с боковой панелью
+----------------------------*/
+.app-layout {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+.app-layout__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--background-default);
+}
+
+/*---------------------------
+  Адаптация для PWA
+----------------------------*/
+@media (display-mode: standalone) {
+  .bottom-nav {
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+  
+  .side-nav {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .side-nav__header {
+    padding-top: max(20px, env(safe-area-inset-top));
+  }
+}
+
+/*---------------------------
+  Анимация переключения вкладок
+----------------------------*/
+@keyframes slideIn {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.nav-enter {
+  animation: slideIn var(--transition-base);
+}
+
+/*---------------------------
+  Темная тема (опционально)
+  Как в WhatsApp - можно добавить позже
+----------------------------*/
+@media (prefers-color-scheme: dark) {
+  /* Будет реализовано при необходимости */
+}
+
+/* Кнопка выхода в шапке */
+.side-nav__logout {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  margin-left: auto;
+}
+
+.side-nav__logout:hover {
+  background-color: rgba(255,255,255,0.1);
+}

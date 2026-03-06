@@ -1,0 +1,129 @@
+.admin-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.admin-sidebar {
+  width: 260px;
+  background: linear-gradient(180deg, var(--whatsapp-teal) 0%, #075e54 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+}
+
+.admin-sidebar__logo {
+  padding: 24px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.admin-sidebar__logo h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.admin-sidebar__logo span {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.admin-nav {
+  flex: 1;
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-nav__link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  color: rgba(255,255,255,0.9);
+  text-decoration: none;
+  transition: all 0.2s;
+  border-left: 4px solid transparent;
+}
+
+.admin-nav__link:hover {
+  background: rgba(255,255,255,0.1);
+  color: white;
+}
+
+.admin-nav__link--active {
+  background: rgba(255,255,255,0.15);
+  color: white;
+  border-left-color: white;
+}
+
+.admin-nav__link i {
+  width: 20px;
+  font-size: 1.1rem;
+}
+
+.admin-sidebar__footer {
+  padding: 20px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.admin-logout-btn {
+  width: 100%;
+  padding: 12px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s;
+  margin-top: 10px;
+}
+
+.admin-logout-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.admin-content {
+  flex: 1;
+  overflow-y: auto;
+  background-color: #f5f5f5;
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+  .admin-sidebar {
+    width: 80px;
+  }
+
+  .admin-sidebar__logo h2,
+  .admin-sidebar__logo span,
+  .admin-nav__link span,
+  .admin-logout-btn span {
+    display: none;
+  }
+
+  .admin-nav__link {
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .admin-nav__link i {
+    width: auto;
+    font-size: 1.3rem;
+  }
+
+  .admin-logout-btn {
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .admin-logout-btn i {
+    font-size: 1.3rem;
+  }
+}

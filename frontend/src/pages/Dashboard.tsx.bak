@@ -1,0 +1,188 @@
+import React, { useEffect, useState, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import './Dashboard.css';
+
+interface EmployeeData {
+  full_name: string;
+  vacation_days_total: number;
+  vacation_days_left: number;
+  avatar_url: string | null;
+}
+
+const Dashboard: React.FC = () => {
+  const { user, logout, isAdmin } = useAuth();
+  const navigate = useNavigate();
+  const [data, setData] = useState<EmployeeData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await employee.getData();
+        setData(response.data);
+      } catch (error) {
+        console.error('Error fetching employee data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Закрытие меню при клике вне его
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleMenuAction = (action: 'profile' | 'admin' | 'logout') => {
+    setShowMenu(false);
+    switch(action) {
+      case 'profile':
+        navigate('/profile');
+        break;
+      case 'admin':
+        navigate('/admin');
+        break;
+      case 'logout':
+        logout();
+        navigate('/login');
+        break;
+    }
+  };
+
+  const firstName = data?.full_name?.split(' ')[0] || user?.full_name?.split(' ')[0] || 'Пользователь';
+
+  if (loading) {
+    return <div className="loading">Загрузка...</div>;
+  }
+
+  return (
+    <div className="dashboard-page">
+      {/* Шапка как в WhatsApp */}
+      <header className="dashboard-header">
+        <div className="dashboard-header__left">
+          <div className="dashboard-header__avatar">
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt={firstName} />
+            ) : (
+              <i className="fas fa-user"></i>
+            )}
+          </div>
+          <div className="dashboard-header__title">HR Чат</div>
+        </div>
+        <div className="dashboard-header__icons" ref={menuRef}>
+          <i className="fas fa-ellipsis-vertical" onClick={() => setShowMenu(!showMenu)}></i>
+          
+          {/* Выпадающее меню */}
+          {showMenu && (
+            <div className="dashboard-header__dropdown">
+              <div className="dropdown-item" onClick={() => handleMenuAction('profile')}>
+                <i className="fas fa-user"></i>
+                <span>Мой профиль</span>
+              </div>
+              {isAdmin() && (
+                <div className="dropdown-item" onClick={() => handleMenuAction('admin')}>
+                  <i className="fas fa-cog"></i>
+                  <span>Админ-панель</span>
+                </div>
+              )}
+              <div className="dropdown-divider"></div>
+              <div className="dropdown-item" onClick={() => handleMenuAction('logout')}>
+                <i className="fas fa-sign-out-alt"></i>
+                <span>Выйти</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Приветствие */}
+      <div style={{ padding: '16px 20px', backgroundColor: 'white', borderBottom: '1px solid var(--border-light)' }}>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: '600', color: 'var(--text-primary)' }}>
+          Здравствуйте, {firstName}!
+        </h2>
+        <p style={{ color: 'var(--ui-dark-gray)', marginTop: '4px' }}>
+          Чем я могу вам помочь?
+        </p>
+      </div>
+
+      {/* Информация об отпуске */}
+      <div style={{ padding: '12px 20px', backgroundColor: 'white', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <span style={{ color: 'var(--ui-dark-gray)' }}>Остаток отпуска:</span>
+          <span style={{ marginLeft: '8px', fontWeight: '600', color: 'var(--whatsapp-teal)' }}>{data?.vacation_days_left || 28} дней</span>
+        </div>
+        <div style={{ fontSize: '0.9rem', color: 'var(--ui-dark-gray)' }}>
+          Всего: {data?.vacation_days_total || 28}
+        </div>
+      </div>
+
+      {/* Быстрые действия */}
+      <div style={{ padding: '20px' }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '12px' }}>
+          Быстрые вопросы
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <button 
+            className="suggestion-chip" 
+            style={{ width: '100%', justifyContent: 'flex-start' }}
+            onClick={() => navigate('/chat')}
+          >
+            <i className="fas fa-umbrella-beach"></i>
+            Как оформить отпуск?
+          </button>
+          <button 
+            className="suggestion-chip" 
+            style={{ width: '100%', justifyContent: 'flex-start' }}
+            onClick={() => navigate('/chat')}
+          >
+            <i className="fas fa-file-alt"></i>
+            Скачать бланк заявления
+          </button>
+          <button 
+            className="suggestion-chip" 
+            style={{ width: '100%', justifyContent: 'flex-start' }}
+            onClick={() => navigate('/chat')}
+          >
+            <i className="fas fa-hospital"></i>
+            Как оформить больничный?
+          </button>
+          <button 
+            className="suggestion-chip" 
+            style={{ width: '100%', justifyContent: 'flex-start' }}
+            onClick={() => navigate('/chat')}
+          >
+            <i className="fas fa-money-bill-wave"></i>
+            Зарплата и выплаты
+          </button>
+        </div>
+      </div>
+
+      {/* Кнопка перехода в чат */}
+      <div style={{ padding: '0 20px 20px' }}>
+        <button 
+          className="admin-btn admin-btn--primary" 
+          style={{ width: '100%', padding: '14px', justifyContent: 'center' }}
+          onClick={() => navigate('/chat')}
+        >
+          <i className="fas fa-comment-dots"></i>
+          Открыть чат с HR-ботом
+        </button>
+      </div>
+
+      {/* Админская кнопка (только для админа) - убираем, так как теперь есть в меню */}
+    </div>
+  );
+};
+
+export default Dashboard;

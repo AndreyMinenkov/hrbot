@@ -1,0 +1,707 @@
+import React, { useEffect, useState, useRef } from 'react';
+import { adminUsers } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import './AdminUsers.css';
+import * as XLSX from 'xlsx';
+
+interface User {
+  id: number;
+  full_name: string;
+  login: string;
+  role: 'admin' | 'employee';
+  vacation_days_total: number;
+  vacation_days_left: number;
+  avatar_url: string | null;
+  created_at: string;
+  department?: string;
+  organization_id?: number;
+  organization_name?: string;
+}
+
+interface Organization {
+  id: number;
+  name: string;
+}
+
+interface ImportData {
+  'ФИО'?: string;
+  'email'?: string;
+  'Организация'?: string;
+  'Подразделение'?: string;
+  'Роль'?: string;
+  full_name?: string;
+  login?: string;
+  organization?: string;
+  department?: string;
+  role?: string;
+}
+
+const AdminUsers: React.FC = () => {
+  const { user: currentUser } = useAuth();
+  const [users, setUsers] = useState<User[]>([]);
+  const [organizationsList, setOrganizationsList] = useState<Organization[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [importLoading, setImportLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'employee'>('all');
+  const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importData, setImportData] = useState<any[]>([]);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [resetPasswordFor, setResetPasswordFor] = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [formData, setFormData] = useState({
+    full_name: '',
+    login: '',
+    password: '',
+    role: 'employee' as 'admin' | 'employee',
+    vacation_days_total: 28,
+    vacation_days_left: 28,
+    department: '',
+    organization_id: '',
+  });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [usersResponse, orgsResponse] = await Promise.all([
+        adminUsers.getAll(),
+        organizations.getAll()
+      ]);
+      setUsers(usersResponse.data);
+      setOrganizationsList(orgsResponse.data);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Фильтрация пользователей по поиску
+  const filteredUsers = users.filter(user => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      user.full_name.toLowerCase().includes(searchLower) ||
+      user.login.toLowerCase().includes(searchLower) ||
+      (user.department && user.department.toLowerCase().includes(searchLower)) ||
+      (user.organization_name && user.organization_name.toLowerCase().includes(searchLower))
+    );
+  }).filter(user => {
+    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    return matchesRole;
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingUser) {
+        const { password, ...updateData } = formData;
+        await adminUsers.update(editingUser.id, updateData);
+      } else {
+        await adminUsers.create(formData);
+      }
+      resetForm();
+      loadData();
+    } catch (error) {
+      console.error('Error saving user:', error);
+    }
+  };
+
+  const handleEdit = (user: User) => {
+    setEditingUser(user);
+    setFormData({
+      full_name: user.full_name,
+      login: user.login,
+      password: '',
+      role: user.role,
+      vacation_days_total: user.vacation_days_total,
+      vacation_days_left: user.vacation_days_left,
+      department: user.department || '',
+      organization_id: user.organization_id?.toString() || '',
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (id === currentUser?.id) {
+      alert('Нельзя удалить свою учетную запись');
+      return;
+    }
+    if (window.confirm('Удалить пользователя?')) {
+      try {
+        await adminUsers.delete(id);
+        loadData();
+      } catch (error) {
+        console.error('Error deleting user:', error);
+      }
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordFor || !newPassword) return;
+    try {
+      await adminUsers.resetPassword(resetPasswordFor.id, newPassword);
+      alert('Пароль успешно изменен');
+      setResetPasswordFor(null);
+      setNewPassword('');
+    } catch (error) {
+      console.error('Error resetting password:', error);
+    }
+  };
+
+  // Обработка загрузки файла
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        // Фильтруем пустые строки
+        const validData = jsonData.filter((row: any) => {
+          return Object.values(row).some(val => val && String(val).trim() !== '');
+        });
+        
+        setImportData(validData);
+        setImportErrors([]);
+        
+      } catch (error) {
+        console.error('Error parsing file:', error);
+        setImportErrors(['Ошибка при чтении файла. Проверьте формат.']);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  // Импорт пользователей
+  const handleImport = async () => {
+    setImportLoading(true);
+    setImportErrors([]);
+    
+    const errors: string[] = [];
+    let successCount = 0;
+
+    for (const row of importData) {
+      try {
+        const full_name = row['ФИО'] || row['full_name'];
+        const login = row['email'] || row['login'];
+        const organizationName = row['Организация'] || row['organization'];
+        const department = row['Подразделение'] || row['department'];
+        const role = row['Роль'] || row['role'];
+
+        if (!full_name || !login) {
+          errors.push(`Строка: отсутствуют ФИО (${full_name || 'пусто'}) или email (${login || 'пусто'})`);
+          continue;
+        }
+
+        let organization_id = '';
+        if (organizationName) {
+          const org = organizationsList.find(o => 
+            o.name.trim().toLowerCase() === organizationName.trim().toLowerCase()
+          );
+          if (org) {
+            organization_id = org.id.toString();
+          } else {
+            errors.push(`Строка с email ${login}: организация "${organizationName}" не найдена в базе. Доступные организации: ${organizationsList.map(o => o.name).join(', ')}`);
+            continue;
+          }
+        }
+
+        const userData = {
+          full_name: full_name,
+          login: login,
+          password: 'Default123!',
+          role: role === 'admin' ? 'admin' : 'employee',
+          vacation_days_total: 28,
+          vacation_days_left: 28,
+          department: department || '',
+          organization_id,
+        };
+
+        await adminUsers.create(userData);
+        successCount++;
+      } catch (error: any) {
+        errors.push(`Строка с email ${row.login || row.email || 'неизвестно'}: ${error.response?.data?.message || 'ошибка при создании'}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      setImportErrors(errors);
+    } else {
+      alert(`✅ Успешно импортировано ${successCount} пользователей`);
+      setShowImportModal(false);
+      setImportData([]);
+      loadData();
+    }
+    
+    setImportLoading(false);
+  };
+
+  const resetForm = () => {
+    setShowModal(false);
+    setEditingUser(null);
+    setFormData({
+      full_name: '',
+      login: '',
+      password: '',
+      role: 'employee',
+      vacation_days_total: 28,
+      vacation_days_left: 28,
+      department: '',
+      organization_id: '',
+    });
+  };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  // Скачивание шаблона для импорта
+  const downloadTemplate = () => {
+    const template = [
+      {
+        'ФИО': 'Иванов Иван Иванович',
+        'email': 'ivanov@company.ru',
+        'Организация': 'Сервис-Интегратор ООО',
+        'Подразделение': 'IT отдел',
+        'Роль': 'employee'
+      }
+    ];
+    
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Шаблон');
+    XLSX.writeFile(wb, 'template_users.xlsx');
+  };
+
+  if (loading) return <div className="loading">Загрузка...</div>;
+
+  return (
+    <div className="admin-users">
+      {/* Шапка с поиском и кнопками */}
+      <div className="users-header" style={{ padding: '20px', borderBottom: '1px solid var(--border-light)' }}>
+        <div className="users-search" style={{ marginBottom: '16px' }}>
+          <div className="users-search-bar">
+            <i className="fas fa-search"></i>
+            <input
+              type="text"
+              placeholder="Поиск по имени, email, отделу или организации..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="users-filters" style={{ display: 'flex', gap: '8px' }}>
+            <div 
+              className={`user-filter ${roleFilter === 'all' ? 'user-filter--active' : ''}`}
+              onClick={() => setRoleFilter('all')}
+            >
+              Все ({users.length})
+            </div>
+            <div 
+              className={`user-filter ${roleFilter === 'employee' ? 'user-filter--active' : ''}`}
+              onClick={() => setRoleFilter('employee')}
+            >
+              Сотрудники ({users.filter(u => u.role === 'employee').length})
+            </div>
+            <div 
+              className={`user-filter ${roleFilter === 'admin' ? 'user-filter--active' : ''}`}
+              onClick={() => setRoleFilter('admin')}
+            >
+              Администраторы ({users.filter(u => u.role === 'admin').length})
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="admin-btn admin-btn--secondary" onClick={() => setShowImportModal(true)}>
+              <i className="fas fa-file-import"></i>
+              Импорт
+            </button>
+            <button className="admin-btn admin-btn--primary" onClick={() => setShowModal(true)}>
+              <i className="fas fa-plus"></i>
+              Добавить
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Список пользователей */}
+      <div className="users-list">
+        {filteredUsers.length === 0 ? (
+          <div className="users-empty">
+            <i className="fas fa-users"></i>
+            <h3>Пользователи не найдены</h3>
+            <p>Попробуйте изменить параметры поиска</p>
+          </div>
+        ) : (
+          filteredUsers.map(user => (
+            <div key={user.id} className="user-item">
+              <div className="user-item__avatar">
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt={user.full_name} />
+                ) : (
+                  getInitials(user.full_name)
+                )}
+              </div>
+              <div className="user-item__info">
+                <div className="user-item__name-row">
+                  <span className="user-item__name">{user.full_name}</span>
+                  <span className={`user-item__role user-item__role--${user.role}`}>
+                    {user.role === 'admin' ? 'Админ' : 'Сотрудник'}
+                  </span>
+                </div>
+                <div className="user-item__details">
+                  <span className="user-item__detail">
+                    <i className="fas fa-envelope"></i>
+                    {user.login}
+                  </span>
+                  <span className="user-item__detail">
+                    <i className="fas fa-umbrella-beach"></i>
+                    Отпуск: {user.vacation_days_left}/{user.vacation_days_total}
+                  </span>
+                  {user.organization_name && (
+                    <span className="user-item__detail">
+                      <i className="fas fa-building"></i>
+                      {user.organization_name}
+                    </span>
+                  )}
+                  {user.department && (
+                    <span className="user-item__detail">
+                      <i className="fas fa-users"></i>
+                      {user.department}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="user-item__actions">
+                <div className="user-action user-action--edit" onClick={() => handleEdit(user)}>
+                  <i className="fas fa-pen"></i>
+                </div>
+                <div className="user-action" onClick={() => setResetPasswordFor(user)}>
+                  <i className="fas fa-key"></i>
+                </div>
+                <div 
+                  className="user-action user-action--delete" 
+                  onClick={() => handleDelete(user.id)}
+                  style={{ opacity: user.id === currentUser?.id ? 0.5 : 1 }}
+                >
+                  <i className="fas fa-trash"></i>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Модальное окно пользователя (добавление/редактирование) */}
+      {showModal && (
+        <div className="user-modal">
+          <div className="user-modal__content">
+            <div className="user-modal__header">
+              <div className="user-modal__title">
+                <i className="fas fa-user"></i>
+                {editingUser ? 'Редактировать' : 'Новый сотрудник'}
+              </div>
+              <div className="user-modal__close" onClick={resetForm}>
+                <i className="fas fa-times"></i>
+              </div>
+            </div>
+
+            <div className="user-modal__body">
+              <form onSubmit={handleSubmit} className="user-form">
+                {!editingUser && (
+                  <div className="form-avatar">
+                    <div className="form-avatar__preview">
+                      <i className="fas fa-user"></i>
+                      <div className="form-avatar__overlay">
+                        <i className="fas fa-camera"></i>
+                      </div>
+                    </div>
+                    <div className="form-avatar__upload">Загрузить фото</div>
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label>ФИО *</label>
+                  <input
+                    type="text"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({...formData, full_name: e.target.value})}
+                    required
+                    placeholder="Иванов Иван Иванович"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Email *</label>
+                  <input
+                    type="email"
+                    value={formData.login}
+                    onChange={(e) => setFormData({...formData, login: e.target.value})}
+                    required
+                    placeholder="ivan@company.ru"
+                  />
+                </div>
+
+                {!editingUser && (
+                  <div className="form-group">
+                    <label>Пароль *</label>
+                    <input
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({...formData, password: e.target.value})}
+                      required
+                      placeholder="Минимум 6 символов"
+                    />
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label>Роль</label>
+                  <div className="role-selector">
+                    <div 
+                      className={`role-option ${formData.role === 'employee' ? 'role-option--selected' : ''}`}
+                      onClick={() => setFormData({...formData, role: 'employee'})}
+                    >
+                      Сотрудник
+                    </div>
+                    <div 
+                      className={`role-option ${formData.role === 'admin' ? 'role-option--selected' : ''}`}
+                      onClick={() => setFormData({...formData, role: 'admin'})}
+                    >
+                      Администратор
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Организация</label>
+                  <select
+                    value={formData.organization_id}
+                    onChange={(e) => setFormData({...formData, organization_id: e.target.value})}
+                  >
+                    <option value="">Не выбрана</option>
+                    {organizationsList.map(org => (
+                      <option key={org.id} value={org.id}>
+                        {org.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Подразделение</label>
+                  <input
+                    type="text"
+                    value={formData.department}
+                    onChange={(e) => setFormData({...formData, department: e.target.value})}
+                    placeholder="Например: IT отдел"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Отпуск</label>
+                  <div className="vacation-inputs">
+                    <input
+                      type="number"
+                      value={formData.vacation_days_total}
+                      onChange={(e) => setFormData({...formData, vacation_days_total: parseInt(e.target.value)})}
+                      min="0"
+                      placeholder="Всего"
+                    />
+                    <span>→</span>
+                    <input
+                      type="number"
+                      value={formData.vacation_days_left}
+                      onChange={(e) => setFormData({...formData, vacation_days_left: parseInt(e.target.value)})}
+                      min="0"
+                      placeholder="Осталось"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-actions">
+                  <button type="submit" className="form-actions__save">
+                    {editingUser ? 'Сохранить' : 'Создать'}
+                  </button>
+                  <button type="button" className="form-actions__cancel" onClick={resetForm}>
+                    Отмена
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно импорта */}
+      {showImportModal && (
+        <div className="user-modal">
+          <div className="user-modal__content">
+            <div className="user-modal__header">
+              <div className="user-modal__title">
+                <i className="fas fa-file-import"></i>
+                Импорт сотрудников
+              </div>
+              <div className="user-modal__close" onClick={() => setShowImportModal(false)}>
+                <i className="fas fa-times"></i>
+              </div>
+            </div>
+
+            <div className="user-modal__body">
+              <div style={{ marginBottom: '20px' }}>
+                <button className="admin-btn admin-btn--secondary" onClick={downloadTemplate}>
+                  <i className="fas fa-download"></i>
+                  Скачать шаблон
+                </button>
+              </div>
+
+              <div 
+                className="faq-file-upload"
+                onClick={() => fileInputRef.current?.click()}
+                style={{ marginBottom: '20px' }}
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".xlsx, .xls, .csv"
+                  style={{ display: 'none' }}
+                />
+                <i className="fas fa-cloud-upload-alt"></i>
+                <span>Нажмите для загрузки файла</span>
+                <small>Поддерживаются форматы XLSX, XLS, CSV</small>
+              </div>
+
+              {importData.length > 0 && (
+                <div style={{ marginBottom: '20px' }}>
+                  <p>Загружено записей: {importData.length}</p>
+                  <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-light)', borderRadius: '8px' }}>
+                    <table style={{ width: '100%', fontSize: '0.85rem' }}>
+                      <thead style={{ backgroundColor: 'var(--search-bg)' }}>
+                        <tr>
+                          <th style={{ padding: '8px' }}>ФИО</th>
+                          <th style={{ padding: '8px' }}>Email</th>
+                          <th style={{ padding: '8px' }}>Организация</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importData.slice(0, 5).map((row, idx) => (
+                          <tr key={idx}>
+                            <td style={{ padding: '8px' }}>{row['ФИО'] || row['full_name']}</td>
+                            <td style={{ padding: '8px' }}>{row['email'] || row['login']}</td>
+                            <td style={{ padding: '8px' }}>{row['Организация'] || row['organization']}</td>
+                          </tr>
+                        ))}
+                        {importData.length > 5 && (
+                          <tr>
+                            <td colSpan={3} style={{ padding: '8px', textAlign: 'center' }}>
+                              и еще {importData.length - 5} записей...
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {importErrors.length > 0 && (
+                <div className="login-form__error" style={{ marginBottom: '20px', maxHeight: '150px', overflowY: 'auto' }}>
+                  <i className="fas fa-exclamation-circle"></i>
+                  <div>
+                    <strong>Ошибки при импорте:</strong>
+                    <ul style={{ marginTop: '8px', marginLeft: '20px' }}>
+                      {importErrors.map((err, idx) => (
+                        <li key={idx}>{err}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              <div className="form-actions">
+                <button 
+                  className="form-actions__save" 
+                  onClick={handleImport}
+                  disabled={importData.length === 0 || importLoading}
+                >
+                  {importLoading ? 'Импорт...' : 'Импортировать'}
+                </button>
+                <button 
+                  className="form-actions__cancel" 
+                  onClick={() => setShowImportModal(false)}
+                >
+                  Отмена
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модалка сброса пароля */}
+      {resetPasswordFor && (
+        <div className="user-modal">
+          <div className="user-modal__content">
+            <div className="user-modal__header">
+              <div className="user-modal__title">
+                <i className="fas fa-key"></i>
+                Сброс пароля
+              </div>
+              <div className="user-modal__close" onClick={() => setResetPasswordFor(null)}>
+                <i className="fas fa-times"></i>
+              </div>
+            </div>
+
+            <div className="user-modal__body">
+              <div className="form-group">
+                <label>Новый пароль для {resetPasswordFor.full_name}</label>
+                <input
+                  type="text"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Введите новый пароль"
+                  autoFocus
+                />
+              </div>
+
+              <div className="form-actions">
+                <button 
+                  className="form-actions__save" 
+                  onClick={handleResetPassword}
+                  disabled={!newPassword}
+                >
+                  Сохранить
+                </button>
+                <button 
+                  className="form-actions__cancel" 
+                  onClick={() => setResetPasswordFor(null)}
+                >
+                  Отмена
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AdminUsers;

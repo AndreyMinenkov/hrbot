@@ -1,0 +1,435 @@
+/*---------------------------
+  Профиль пользователя
+  В стиле WhatsApp - информация о контакте
+----------------------------*/
+.profile-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-default);
+  overflow-y: auto;
+}
+
+/*---------------------------
+  Шапка профиля как в WhatsApp
+----------------------------*/
+.profile-header {
+  background-color: var(--whatsapp-teal);
+  color: white;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.profile-header__back {
+  font-size: 1.5rem;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color var(--transition-fast);
+}
+
+.profile-header__back:hover {
+  background-color: rgba(255,255,255,0.1);
+}
+
+.profile-header__title {
+  font-weight: 600;
+  font-size: 1.2rem;
+  flex: 1;
+}
+
+.profile-header__edit {
+  font-size: 1.2rem;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color var(--transition-fast);
+}
+
+.profile-header__edit:hover {
+  background-color: rgba(255,255,255,0.1);
+}
+
+/*---------------------------
+  Аватар профиля (большой)
+  Как в WhatsApp - круг с возможностью смены
+----------------------------*/
+.profile-avatar-section {
+  padding: 30px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: white;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.profile-avatar {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, var(--ui-dark-gray), var(--whatsapp-teal));
+  margin-bottom: 15px;
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-avatar__overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.5rem;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.profile-avatar:hover .profile-avatar__overlay {
+  opacity: 1;
+}
+
+.profile-name {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 5px;
+}
+
+.profile-status {
+  color: var(--ui-dark-gray);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.profile-status i {
+  font-size: 0.8rem;
+  color: var(--whatsapp-green);
+}
+
+/*---------------------------
+  Информационные секции
+  Как в WhatsApp - группы настроек
+----------------------------*/
+.profile-section {
+  background-color: white;
+  margin-top: 12px;
+  padding: 0 16px;
+}
+
+.profile-section__title {
+  padding: 16px 0 8px;
+  color: var(--whatsapp-teal);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.profile-section__content {
+  background-color: white;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Элемент информации */
+.profile-info-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.profile-info-item:last-child {
+  border-bottom: none;
+}
+
+.profile-info-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.profile-info-item__icon {
+  width: 40px;
+  color: var(--icon-color);
+  font-size: 1.2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.profile-info-item__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-info-item__label {
+  font-size: 0.85rem;
+  color: var(--ui-dark-gray);
+  margin-bottom: 4px;
+}
+
+.profile-info-item__value {
+  font-size: 1rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-info-item__arrow {
+  color: var(--ui-dark-gray);
+  font-size: 0.9rem;
+  margin-left: 8px;
+}
+
+/*---------------------------
+  Отпуск (Vacation)
+  Прогресс бар как в WhatsApp статусе
+----------------------------*/
+.vacation-section {
+  background-color: white;
+  margin: 12px 16px;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.vacation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.vacation-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vacation-title i {
+  color: var(--whatsapp-teal);
+}
+
+.vacation-stats {
+  color: var(--whatsapp-teal);
+  font-weight: 600;
+}
+
+.vacation-progress {
+  height: 8px;
+  background-color: var(--border-light);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.vacation-progress__bar {
+  height: 100%;
+  background-color: var(--whatsapp-teal);
+  border-radius: 4px;
+  transition: width var(--transition-base);
+}
+
+.vacation-days {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--ui-dark-gray);
+  margin-top: 8px;
+}
+
+/*---------------------------
+  Действия (кнопки)
+  Как в WhatsApp - опасные зоны
+----------------------------*/
+.profile-actions {
+  margin: 20px 16px;
+}
+
+.profile-action-item {
+  background-color: white;
+  padding: 16px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  margin-bottom: 2px;
+}
+
+.profile-action-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.profile-action-item__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.profile-action-item__icon--danger {
+  background-color: #fce8e8;
+  color: #d32f2f;
+}
+
+.profile-action-item__icon--primary {
+  background-color: #e3f2fd;
+  color: var(--whatsapp-teal);
+}
+
+.profile-action-item__content {
+  flex: 1;
+}
+
+.profile-action-item__title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.profile-action-item__subtitle {
+  font-size: 0.85rem;
+  color: var(--ui-dark-gray);
+}
+
+.profile-action-item__arrow {
+  color: var(--ui-dark-gray);
+  font-size: 0.9rem;
+}
+
+/*---------------------------
+  Режим редактирования
+----------------------------*/
+.profile-edit-form {
+  padding: 20px 16px;
+}
+
+.edit-field {
+  margin-bottom: 20px;
+}
+
+.edit-field__label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--ui-dark-gray);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.edit-field__input {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: var(--search-bg);
+  border: 1px solid transparent;
+  border-radius: 24px;
+  font-size: 1rem;
+  transition: border-color var(--transition-fast);
+}
+
+.edit-field__input:focus {
+  border-color: var(--whatsapp-teal);
+  background-color: white;
+  outline: none;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.edit-actions__button {
+  flex: 1;
+  padding: 14px;
+  border-radius: 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+
+.edit-actions__button--save {
+  background-color: var(--whatsapp-teal);
+  color: white;
+  border: none;
+}
+
+.edit-actions__button--save:hover {
+  background-color: var(--whatsapp-green-medium);
+}
+
+.edit-actions__button--cancel {
+  background-color: white;
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+}
+
+.edit-actions__button--cancel:hover {
+  background-color: var(--hover-bg);
+}
+
+/*---------------------------
+  Адаптация для мобильных
+----------------------------*/
+@media (max-width: 768px) {
+  .profile-avatar {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .profile-name {
+    font-size: 1.3rem;
+  }
+  
+  .profile-section {
+    padding: 0 12px;
+  }
+  
+  .vacation-section {
+    margin: 12px;
+  }
+}
+
+/* PWA оптимизации */
+@media (display-mode: standalone) {
+  .profile-header {
+    padding-top: max(12px, env(safe-area-inset-top));
+  }
+}
