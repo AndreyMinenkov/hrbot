@@ -18,14 +18,22 @@ exports.searchFaq = async (req, res) => {
 
         // Если есть активное состояние и пользователь выбрал вариант
         if (currentState && currentState.waitingForChoice) {
-            // Ищем выбранный вариант по тексту кнопки
-            const choiceResult = await pool.query(
-                `SELECT * FROM faq
-                 WHERE parent_id = $1 AND (keywords ILIKE $2 OR question ILIKE $2)`,
-                [currentState.parentId, `%${query}%`]
-            );
+            // Ищем выбранный вариант по тексту кнопки или по ID (если передан)
+            let choiceResult;
+            
+            // Проверяем, не передан ли ID в запросе (для кнопок скачивания)
+            if (currentState.children) {
+                // Ищем по тексту среди дочерних элементов
+                choiceResult = await pool.query(
+                    `SELECT * FROM faq
+                     WHERE parent_id = $1 AND (keywords ILIKE $2 OR question ILIKE $2 OR $2 = ANY(
+                        SELECT jsonb_array_elements_text(buttons->>'text')
+                     ))`,
+                    [currentState.parentId, `%${query}%`]
+                );
+            }
 
-            if (choiceResult.rows.length > 0) {
+            if (choiceResult && choiceResult.rows.length > 0) {
                 // Нашли конкретный вариант
                 const faqItem = choiceResult.rows[0];
 

@@ -11,3 +11,6 @@ module.exports = router;
 
 // Сброс диалога
 router.post('/reset', authMiddleware, faqController.resetDialog);
+
+// Получить вопрос по ID
+router.get('/:id', faqController.getFaqById);

@@ -145,18 +145,12 @@ exports.createFaq = async (req, res) => {
             }
         }
 
-        // Преобразуем buttons в JSON
+        // Преобразуем buttons в JSON, если они переданы как строка
         let buttonsJson = null;
         if (buttons) {
             try {
-                // Если пришла строка, пробуем распарсить, если массив - оставляем как есть
-                if (typeof buttons === 'string') {
-                    buttonsJson = JSON.parse(buttons);
-                } else {
-                    buttonsJson = buttons;
-                }
+                buttonsJson = typeof buttons === 'string' ? JSON.parse(buttons) : buttons;
             } catch (e) {
-                console.error('Error parsing buttons:', e);
                 return res.status(400).json({ message: 'Неверный формат кнопок' });
             }
         }
@@ -179,8 +173,6 @@ exports.updateFaq = async (req, res) => {
     try {
         const { id } = req.params;
         const { keywords, question, answer, category, parent_id, buttons } = req.body;
-        
-        console.log('Update FAQ request:', { id, keywords, question, answer, category, parent_id, buttons });
 
         // Получаем старую запись
         const oldFaq = await pool.query('SELECT file_path FROM faq WHERE id = $1', [id]);
@@ -202,19 +194,12 @@ exports.updateFaq = async (req, res) => {
             }
         }
 
-        // Преобразуем buttons в JSON
+        // Преобразуем buttons в JSON, если они переданы как строка
         let buttonsJson = null;
         if (buttons) {
             try {
-                // Если пришла строка, пробуем распарсить, если массив - оставляем как есть
-                if (typeof buttons === 'string') {
-                    buttonsJson = JSON.parse(buttons);
-                } else {
-                    buttonsJson = buttons;
-                }
-                console.log('Parsed buttons:', buttonsJson);
+                buttonsJson = typeof buttons === 'string' ? JSON.parse(buttons) : buttons;
             } catch (e) {
-                console.error('Error parsing buttons:', e);
                 return res.status(400).json({ message: 'Неверный формат кнопок' });
             }
         }
@@ -223,13 +208,13 @@ exports.updateFaq = async (req, res) => {
         if (file_path) {
             result = await pool.query(
                 `UPDATE faq SET
-                    keywords = COALESCE($1, keywords),
-                    question = COALESCE($2, question),
-                    answer = COALESCE($3, answer),
-                    category = COALESCE($4, category),
+                    keywords = $1,
+                    question = $2,
+                    answer = $3,
+                    category = $4,
                     file_path = $5,
-                    parent_id = COALESCE($6, parent_id),
-                    buttons = $7::jsonb,
+                    parent_id = $6,
+                    buttons = $7,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = $8
                 RETURNING *`,
@@ -238,12 +223,12 @@ exports.updateFaq = async (req, res) => {
         } else {
             result = await pool.query(
                 `UPDATE faq SET
-                    keywords = COALESCE($1, keywords),
-                    question = COALESCE($2, question),
-                    answer = COALESCE($3, answer),
-                    category = COALESCE($4, category),
-                    parent_id = COALESCE($5, parent_id),
-                    buttons = $6::jsonb,
+                    keywords = $1,
+                    question = $2,
+                    answer = $3,
+                    category = $4,
+                    parent_id = $5,
+                    buttons = $6,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = $7
                 RETURNING *`,
@@ -330,113 +315,6 @@ exports.getChildren = async (req, res) => {
         res.json(questionsWithHasChildren);
     } catch (error) {
         console.error('Ошибка при получении дочерних элементов:', error);
-        res.status(500).json({ message: 'Ошибка сервера' });
-    }
-};
-
-// Получить данные для Mindmap в формате графа
-exports.getMindmapGraph = async (req, res) => {
-    try {
-        const { rootId } = req.params;
-
-        // Рекурсивно получаем все узлы ветки
-        const fetchBranch = async (parentId) => {
-            const result = await pool.query(`
-                SELECT 
-                    id, 
-                    keywords, 
-                    question, 
-                    answer, 
-                    parent_id,
-                    buttons,
-                    file_path,
-                    (
-                        SELECT COUNT(*) FROM faq WHERE parent_id = f.id
-                    ) as children_count
-                FROM faq f
-                WHERE parent_id = $1
-                ORDER BY id
-            `, [parentId]);
-
-            const nodes = [];
-            for (const row of result.rows) {
-                nodes.push(row);
-                const children = await fetchBranch(row.id);
-                nodes.push(...children);
-            }
-            return nodes;
-        };
-
-        // Получаем корневой узел
-        const rootResult = await pool.query(`
-            SELECT 
-                id, 
-                keywords, 
-                question, 
-                answer,
-                buttons,
-                file_path,
-                0 as children_count
-            FROM faq 
-            WHERE id = $1
-        `, [rootId]);
-
-        if (rootResult.rows.length === 0) {
-            return res.status(404).json({ message: 'Корневой элемент не найден' });
-        }
-
-        const rootNode = rootResult.rows[0];
-        const childNodes = await fetchBranch(rootId);
-
-        // Преобразуем в формат для React Flow
-        const nodes = [];
-        const edges = [];
-
-        // Добавляем корневой узел
-        nodes.push({
-            id: rootNode.id.toString(),
-            type: 'custom',
-            data: { 
-                label: rootNode.question || rootNode.keywords,
-                question: rootNode.question,
-                answer: rootNode.answer,
-                keywords: rootNode.keywords,
-                buttons: rootNode.buttons || [],
-                file_path: rootNode.file_path || null
-            },
-            position: { x: 250, y: 0 }
-        });
-
-        // Добавляем дочерние узлы и связи
-        childNodes.forEach((node, index) => {
-            nodes.push({
-                id: node.id.toString(),
-                type: 'custom',
-                data: { 
-                    label: node.question || node.keywords,
-                    question: node.question,
-                    answer: node.answer,
-                    keywords: node.keywords,
-                    buttons: node.buttons || [],
-                    file_path: node.file_path || null
-                },
-                position: { x: 100 + (index * 200), y: 150 }
-            });
-
-            if (node.parent_id) {
-                edges.push({
-                    id: `e${node.parent_id}-${node.id}`,
-                    source: node.parent_id.toString(),
-                    target: node.id.toString(),
-                    animated: true,
-                    label: '→'
-                });
-            }
-        });
-
-        res.json({ nodes, edges, rootNode });
-    } catch (error) {
-        console.error('Ошибка при получении графа:', error);
         res.status(500).json({ message: 'Ошибка сервера' });
     }
 };
@@ -660,49 +538,101 @@ exports.resetPassword = async (req, res) => {
     }
 };
 
-// Обновить узел в Mindmap (с поддержкой buttons)
-exports.updateMindmapNode = async (req, res) => {
+// Получить данные для Mindmap в формате графа
+exports.getMindmapGraph = async (req, res) => {
     try {
-        const { id } = req.params;
-        const { keywords, question, answer, buttons } = req.body;
+        const { rootId } = req.params;
 
-        console.log('Updating mindmap node:', { id, keywords, question, answer, buttons });
+        // Рекурсивно получаем все узлы ветки
+        const fetchBranch = async (parentId) => {
+            const result = await pool.query(`
+                SELECT 
+                    id, 
+                    keywords, 
+                    question, 
+                    answer, 
+                    parent_id,
+                    (
+                        SELECT COUNT(*) FROM faq WHERE parent_id = f.id
+                    ) as children_count
+                FROM faq f
+                WHERE parent_id = $1
+                ORDER BY id
+            `, [parentId]);
 
-        // Преобразуем buttons в JSON для PostgreSQL
-        let buttonsJson = null;
-        if (buttons) {
-            try {
-                // Если пришла строка, пробуем распарсить, если массив - оставляем как есть
-                if (typeof buttons === 'string') {
-                    buttonsJson = JSON.parse(buttons);
-                } else {
-                    buttonsJson = buttons;
-                }
-            } catch (e) {
-                console.error('Error parsing buttons:', e);
-                return res.status(400).json({ message: 'Неверный формат кнопок' });
+            const nodes = [];
+            for (const row of result.rows) {
+                nodes.push(row);
+                const children = await fetchBranch(row.id);
+                nodes.push(...children);
             }
+            return nodes;
+        };
+
+        // Получаем корневой узел
+        const rootResult = await pool.query(`
+            SELECT 
+                id, 
+                keywords, 
+                question, 
+                answer,
+                0 as children_count
+            FROM faq 
+            WHERE id = $1
+        `, [rootId]);
+
+        if (rootResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Корневой элемент не найден' });
         }
 
-        const result = await pool.query(
-            `UPDATE faq SET
-                keywords = COALESCE($1, keywords),
-                question = COALESCE($2, question),
-                answer = COALESCE($3, answer),
-                buttons = $4::jsonb,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = $5
-            RETURNING *`,
-            [keywords, question, answer, buttonsJson, id]
-        );
+        const rootNode = rootResult.rows[0];
+        const childNodes = await fetchBranch(rootId);
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({ message: 'Узел не найден' });
-        }
+        // Преобразуем в формат для React Flow
+        const nodes = [];
+        const edges = [];
 
-        res.json(result.rows[0]);
+        // Добавляем корневой узел
+        nodes.push({
+            id: rootNode.id.toString(),
+            type: 'default',
+            data: { 
+                label: rootNode.question || rootNode.keywords,
+                question: rootNode.question,
+                answer: rootNode.answer,
+                keywords: rootNode.keywords
+            },
+            position: { x: 250, y: 0 } // Временная позиция
+        });
+
+        // Добавляем дочерние узлы и связи
+        childNodes.forEach((node, index) => {
+            nodes.push({
+                id: node.id.toString(),
+                type: 'default',
+                data: { 
+                    label: node.question || node.keywords,
+                    question: node.question,
+                    answer: node.answer,
+                    keywords: node.keywords
+                },
+                position: { x: 100 + (index * 200), y: 150 } // Временная позиция
+            });
+
+            if (node.parent_id) {
+                edges.push({
+                    id: `e${node.parent_id}-${node.id}`,
+                    source: node.parent_id.toString(),
+                    target: node.id.toString(),
+                    animated: true,
+                    label: '→'
+                });
+            }
+        });
+
+        res.json({ nodes, edges, rootNode });
     } catch (error) {
-        console.error('Ошибка при обновлении узла:', error);
+        console.error('Ошибка при получении графа:', error);
         res.status(500).json({ message: 'Ошибка сервера' });
     }
 };
@@ -714,6 +644,7 @@ exports.updateNodePosition = async (req, res) => {
         const { x, y } = req.body;
 
         // TODO: Добавить поля pos_x и pos_y в таблицу faq
+        // Пока просто возвращаем успех
         console.log(`Update position for node ${id}: (${x}, ${y})`);
         
         res.json({ message: 'Позиция обновлена', id, x, y });
@@ -741,6 +672,44 @@ exports.createMindmapNode = async (req, res) => {
         res.status(201).json(result.rows[0]);
     } catch (error) {
         console.error('Ошибка при создании узла:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+};
+
+// Обновить узел (с поддержкой buttons)
+exports.updateMindmapNode = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { keywords, question, answer, buttons } = req.body;
+
+        let buttonsJson = null;
+        if (buttons) {
+            try {
+                buttonsJson = typeof buttons === 'string' ? JSON.parse(buttons) : buttons;
+            } catch (e) {
+                return res.status(400).json({ message: 'Неверный формат кнопок' });
+            }
+        }
+
+        const result = await pool.query(
+            `UPDATE faq SET
+                keywords = COALESCE($1, keywords),
+                question = COALESCE($2, question),
+                answer = COALESCE($3, answer),
+                buttons = COALESCE($4, buttons),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $5
+            RETURNING *`,
+            [keywords, question, answer, buttonsJson, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Узел не найден' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Ошибка при обновлении узла:', error);
         res.status(500).json({ message: 'Ошибка сервера' });
     }
 };

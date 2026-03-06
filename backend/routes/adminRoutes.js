@@ -27,3 +27,11 @@ router.delete('/users/:id', adminController.deleteUser);
 router.post('/users/:id/reset-password', adminController.resetPassword);
 
 module.exports = router;
+
+// ===== Mindmap =====
+router.get('/faq/mindmap/:rootId', adminController.getMindmapGraph);
+
+// ===== Mindmap редактирование =====
+router.put('/faq/node/:id/position', adminController.updateNodePosition);
+router.post('/faq/node', adminController.createMindmapNode);
+router.put('/faq/node/:id', adminController.updateMindmapNode);

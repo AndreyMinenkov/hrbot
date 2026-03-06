@@ -34,7 +34,7 @@ exports.searchFaq = async (req, res) => {
 
                 // Проверяем, есть ли у этого ответа свои дочерние элементы
                 const childrenResult = await pool.query(
-                    'SELECT id, question, keywords, file_path FROM faq WHERE parent_id = $1 ORDER BY id',
+                    'SELECT id, question, keywords FROM faq WHERE parent_id = $1 ORDER BY id',
                     [faqItem.id]
                 );
 
@@ -113,7 +113,7 @@ exports.searchFaq = async (req, res) => {
                 answer: item.answer,
                 category: item.category,
                 file_path: item.file_path,
-                buttons: buttons,
+                buttons: buttons, // Используем сохраненные кнопки
                 hasChildren: hasChildren
             };
 
@@ -172,29 +172,6 @@ exports.resetDialog = async (req, res) => {
         res.json({ message: 'Диалог сброшен' });
     } catch (error) {
         console.error('Ошибка при сбросе диалога:', error);
-        res.status(500).json({ message: 'Ошибка сервера' });
-    }
-};
-
-// Получить FAQ по ID (для прямых ссылок)
-exports.getFaqById = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const result = await pool.query(
-            `SELECT id, keywords, question, answer, category, file_path, buttons
-             FROM faq
-             WHERE id = $1`,
-            [id]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ message: 'Запись не найдена' });
-        }
-
-        res.json(result.rows[0]);
-    } catch (error) {
-        console.error('Ошибка при получении FAQ по ID:', error);
         res.status(500).json({ message: 'Ошибка сервера' });
     }
 };

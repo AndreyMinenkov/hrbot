@@ -149,14 +149,9 @@ exports.createFaq = async (req, res) => {
         let buttonsJson = null;
         if (buttons) {
             try {
-                // Если пришла строка, пробуем распарсить, если массив - оставляем как есть
-                if (typeof buttons === 'string') {
-                    buttonsJson = JSON.parse(buttons);
-                } else {
-                    buttonsJson = buttons;
-                }
+                // Если пришла строка - парсим, если массив - оставляем как есть
+                buttonsJson = typeof buttons === 'string' ? JSON.parse(buttons) : buttons;
             } catch (e) {
-                console.error('Error parsing buttons:', e);
                 return res.status(400).json({ message: 'Неверный формат кнопок' });
             }
         }
@@ -179,8 +174,6 @@ exports.updateFaq = async (req, res) => {
     try {
         const { id } = req.params;
         const { keywords, question, answer, category, parent_id, buttons } = req.body;
-        
-        console.log('Update FAQ request:', { id, keywords, question, answer, category, parent_id, buttons });
 
         // Получаем старую запись
         const oldFaq = await pool.query('SELECT file_path FROM faq WHERE id = $1', [id]);
@@ -206,15 +199,8 @@ exports.updateFaq = async (req, res) => {
         let buttonsJson = null;
         if (buttons) {
             try {
-                // Если пришла строка, пробуем распарсить, если массив - оставляем как есть
-                if (typeof buttons === 'string') {
-                    buttonsJson = JSON.parse(buttons);
-                } else {
-                    buttonsJson = buttons;
-                }
-                console.log('Parsed buttons:', buttonsJson);
+                buttonsJson = typeof buttons === 'string' ? JSON.parse(buttons) : buttons;
             } catch (e) {
-                console.error('Error parsing buttons:', e);
                 return res.status(400).json({ message: 'Неверный формат кнопок' });
             }
         }
@@ -223,13 +209,13 @@ exports.updateFaq = async (req, res) => {
         if (file_path) {
             result = await pool.query(
                 `UPDATE faq SET
-                    keywords = COALESCE($1, keywords),
-                    question = COALESCE($2, question),
-                    answer = COALESCE($3, answer),
-                    category = COALESCE($4, category),
+                    keywords = $1,
+                    question = $2,
+                    answer = $3,
+                    category = $4,
                     file_path = $5,
-                    parent_id = COALESCE($6, parent_id),
-                    buttons = $7::jsonb,
+                    parent_id = $6,
+                    buttons = $7,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = $8
                 RETURNING *`,
@@ -238,12 +224,12 @@ exports.updateFaq = async (req, res) => {
         } else {
             result = await pool.query(
                 `UPDATE faq SET
-                    keywords = COALESCE($1, keywords),
-                    question = COALESCE($2, question),
-                    answer = COALESCE($3, answer),
-                    category = COALESCE($4, category),
-                    parent_id = COALESCE($5, parent_id),
-                    buttons = $6::jsonb,
+                    keywords = $1,
+                    question = $2,
+                    answer = $3,
+                    category = $4,
+                    parent_id = $5,
+                    buttons = $6,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = $7
                 RETURNING *`,
@@ -349,7 +335,6 @@ exports.getMindmapGraph = async (req, res) => {
                     answer, 
                     parent_id,
                     buttons,
-                    file_path,
                     (
                         SELECT COUNT(*) FROM faq WHERE parent_id = f.id
                     ) as children_count
@@ -375,7 +360,6 @@ exports.getMindmapGraph = async (req, res) => {
                 question, 
                 answer,
                 buttons,
-                file_path,
                 0 as children_count
             FROM faq 
             WHERE id = $1
@@ -401,8 +385,7 @@ exports.getMindmapGraph = async (req, res) => {
                 question: rootNode.question,
                 answer: rootNode.answer,
                 keywords: rootNode.keywords,
-                buttons: rootNode.buttons || [],
-                file_path: rootNode.file_path || null
+                buttons: rootNode.buttons || []
             },
             position: { x: 250, y: 0 }
         });
@@ -417,8 +400,7 @@ exports.getMindmapGraph = async (req, res) => {
                     question: node.question,
                     answer: node.answer,
                     keywords: node.keywords,
-                    buttons: node.buttons || [],
-                    file_path: node.file_path || null
+                    buttons: node.buttons || []
                 },
                 position: { x: 100 + (index * 200), y: 150 }
             });
@@ -672,11 +654,17 @@ exports.updateMindmapNode = async (req, res) => {
         let buttonsJson = null;
         if (buttons) {
             try {
-                // Если пришла строка, пробуем распарсить, если массив - оставляем как есть
-                if (typeof buttons === 'string') {
-                    buttonsJson = JSON.parse(buttons);
-                } else {
+                // Если пришел массив, преобразуем в JSON строку
+                if (Array.isArray(buttons)) {
+                    buttonsJson = JSON.stringify(buttons);
+                } 
+                // Если пришла строка, проверяем, может это уже JSON
+                else if (typeof buttons === 'string') {
+                    // Пробуем распарсить, чтобы убедиться, что это валидный JSON
+                    JSON.parse(buttons);
                     buttonsJson = buttons;
+                } else {
+                    buttonsJson = JSON.stringify(buttons);
                 }
             } catch (e) {
                 console.error('Error parsing buttons:', e);

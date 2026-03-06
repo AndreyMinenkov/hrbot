@@ -5,7 +5,7 @@ const authMiddleware = require('../middleware/auth');
 const adminMiddleware = require('../middleware/admin');
 
 // Сохранение истории чата (доступно всем авторизованным)
-router.post('/chat/save', authMiddleware, statsController.saveChat);
+router.post('/chat/save', authMiddleware, statsController.saveChatHistory);
 
 // Статистика (только для админа)
 router.get('/admin', authMiddleware, adminMiddleware, statsController.getStats);
