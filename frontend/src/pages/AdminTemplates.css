@@ -1,0 +1,49 @@
+/* Стили для AdminTemplates используют общие классы из AdminFaq.css */
+/* Дополнительные стили для шаблонов */
+
+.template-fields {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.template-field-tag {
+  background-color: var(--search-bg);
+  color: var(--whatsapp-teal);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid var(--border-light);
+}
+
+.template-file-info {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--ui-dark-gray);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.template-file-info i {
+  color: var(--whatsapp-teal);
+}
+
+.template-file-link {
+  color: var(--whatsapp-teal);
+  text-decoration: none;
+  margin-left: 8px;
+}
+
+.template-file-link:hover {
+  text-decoration: underline;
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+  .faq-question-item__actions {
+    opacity: 1;
+  }
+}

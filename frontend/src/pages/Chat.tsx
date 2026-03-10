@@ -45,7 +45,6 @@ const Chat: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Закрытие меню и эмодзи-пикера при клике вне их
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -58,6 +57,166 @@ const Chat: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Функция для преобразования текста с Markdown-ссылками в HTML
+  const formatMessageWithLinks = (text: string): React.ReactNode => {
+    if (!text) return text;
+
+    // Ищем паттерн [текст](url)
+    const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    
+    let lastIndex = 0;
+    const parts: React.ReactNode[] = [];
+    let match: RegExpExecArray | null;
+
+    // Сначала ищем Markdown-ссылки
+    while ((match = markdownLinkRegex.exec(text)) !== null) {
+      // Добавляем текст до ссылки
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index));
+      }
+      
+      // Добавляем ссылку
+      const linkText = match[1];
+      const linkUrl = match[2].startsWith('http') ? match[2] : `https://31.130.155.16:8443${match[2]}`;
+      
+      parts.push(
+        <a 
+          key={`link-${match.index}`}
+          href={linkUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="message__link"
+          onClick={(e) => {
+            e.preventDefault();
+            handleDownloadLink(linkUrl);
+          }}
+        >
+          {linkText}
+        </a>
+      );
+      
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Добавляем оставшийся текст
+    if (lastIndex < text.length) {
+      const remainingText = text.substring(lastIndex);
+      
+      // Ищем обычные URL в оставшемся тексте
+      let urlLastIndex = 0;
+      let urlMatch: RegExpExecArray | null;
+      const urlParts: React.ReactNode[] = [];
+      
+      while ((urlMatch = urlRegex.exec(remainingText)) !== null) {
+        if (urlMatch.index > urlLastIndex) {
+          urlParts.push(remainingText.substring(urlLastIndex, urlMatch.index));
+        }
+        
+        const currentUrl = urlMatch[0];
+        
+        urlParts.push(
+          <a
+            key={`url-${urlMatch.index}`}
+            href={currentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="message__link"
+            onClick={(e) => {
+              e.preventDefault();
+              handleDownloadLink(currentUrl);
+            }}
+          >
+            {currentUrl}
+          </a>
+        );
+        
+        urlLastIndex = urlMatch.index + urlMatch[0].length;
+      }
+      
+      if (urlLastIndex < remainingText.length) {
+        urlParts.push(remainingText.substring(urlLastIndex));
+      }
+      
+      if (urlParts.length > 0) {
+        parts.push(...urlParts);
+      } else {
+        parts.push(remainingText);
+      }
+    }
+
+    return parts.length > 0 ? <>{parts}</> : text;
+  };
+
+  // Улучшенная функция скачивания, работающая на мобильных устройствах
+  const handleDownloadLink = async (url: string) => {
+    try {
+      // Пытаемся скачать файл через fetch
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Cache-Control': 'no-cache',
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      
+      const blob = await response.blob();
+      
+      // Определяем тип файла по расширению
+      const extension = url.split('.').pop()?.toLowerCase() || 'docx';
+      let mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      
+      if (extension === 'pdf') {
+        mimeType = 'application/pdf';
+      } else if (extension === 'doc') {
+        mimeType = 'application/msword';
+      }
+      
+      // Создаем blob с правильным MIME-типом
+      const blobWithType = new Blob([blob], { type: mimeType });
+      const blobUrl = window.URL.createObjectURL(blobWithType);
+      
+      // Создаем и кликаем по ссылке
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = url.split('/').pop() || 'document.docx';
+      
+      // Для мобильных устройств добавляем атрибут target
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      
+      document.body.appendChild(link);
+      
+      // Используем setTimeout для лучшей совместимости с мобильными
+      setTimeout(() => {
+        link.click();
+        
+        // Очищаем после скачивания
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(blobUrl);
+        }, 100);
+      }, 100);
+      
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      
+      // Fallback: открываем в новой вкладке
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        document.body.removeChild(link);
+      }, 100);
+    }
+  };
 
   const handleSend = async (text?: string, buttonId?: number) => {
     const messageText = text || input;
@@ -78,7 +237,6 @@ const Chat: React.FC = () => {
     try {
       let response;
       
-      // Если есть ID кнопки, пытаемся получить вопрос по ID
       if (buttonId) {
         try {
           console.log('Fetching FAQ by ID:', buttonId);
@@ -100,7 +258,6 @@ const Chat: React.FC = () => {
       if (response.data.length > 0) {
         const faqItem = response.data[0];
         
-        // Получаем имя файла из пути
         let fileName = null;
         if (faqItem.file_path) {
           const parts = faqItem.file_path.split('/');
@@ -126,7 +283,6 @@ const Chat: React.FC = () => {
 
         setMessages(prev => [...prev, botMessage]);
         
-        // Сохраняем статистику
         try {
           await stats.saveChat(messageText, botMessage.text);
         } catch (statsError) {
@@ -173,7 +329,8 @@ const Chat: React.FC = () => {
   };
 
   const handleDownloadFile = (filePath: string) => {
-    window.open(`http://31.130.155.16:5001${filePath}`, '_blank');
+    const url = `https://31.130.155.16:8443${filePath}`;
+    handleDownloadLink(url);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -213,7 +370,6 @@ const Chat: React.FC = () => {
 
   return (
     <div className="chat-page">
-      {/* Шапка чата */}
       <div className="chat-header">
         <div className="chat-header__left">
           <div className="chat-header__back" onClick={() => window.history.back()}>
@@ -228,7 +384,6 @@ const Chat: React.FC = () => {
         <div className="chat-header__icons" ref={menuRef}>
           <i className="fas fa-ellipsis-vertical" onClick={() => setShowMenu(!showMenu)}></i>
 
-          {/* Выпадающее меню */}
           {showMenu && (
             <div className="chat-header__dropdown">
               <div className="dropdown-item" onClick={() => handleMenuAction('profile')}>
@@ -251,7 +406,6 @@ const Chat: React.FC = () => {
         </div>
       </div>
 
-      {/* Область сообщений */}
       <div className="chat-messages">
         <div className="date-divider">
           <span>Сегодня</span>
@@ -283,7 +437,9 @@ const Chat: React.FC = () => {
                     </div>
                   </div>
                 )}
-                <div className="message__text">{message.text}</div>
+                <div className="message__text">
+                  {message.sender === 'bot' ? formatMessageWithLinks(message.text) : message.text}
+                </div>
                 <div className="message__footer">
                   <span className="message__time">{formatTime(message.timestamp)}</span>
                   {message.sender === 'user' && (
@@ -293,7 +449,6 @@ const Chat: React.FC = () => {
               </div>
             </div>
             
-            {/* Отображение кнопок под сообщением бота */}
             {message.sender === 'bot' && message.buttons && message.buttons.length > 0 && (
               <div className="message-buttons">
                 {message.buttons.map((button, index) => (
@@ -323,7 +478,6 @@ const Chat: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Панель ввода */}
       <div className="chat-footer">
         <div className="chat-footer__icon">
           <i className="fas fa-paperclip"></i>
@@ -346,7 +500,6 @@ const Chat: React.FC = () => {
             <i className="fas fa-smile"></i>
           </div>
 
-          {/* Эмодзи-пикер */}
           {showEmojiPicker && (
             <div ref={emojiPickerRef} className="emoji-picker-container">
               <EmojiPicker onEmojiClick={handleEmojiClick} />

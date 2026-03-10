@@ -7,7 +7,7 @@ const fs = require('fs');
 // Настройка multer для загрузки файлов
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const uploadDir = 'uploads/documents/';
+        const uploadDir = '/var/www/hr-bot/uploads/documents/';
         // Создаем папку, если её нет
         if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true });
@@ -128,7 +128,7 @@ exports.getRootFaq = async (req, res) => {
 exports.createFaq = async (req, res) => {
     try {
         const { keywords, question, answer, category, parent_id, buttons } = req.body;
-        const file_path = req.file ? `/uploads/documents/${req.file.filename}` : null;
+        const file_path = req.file ? `//var/www/hr-bot/uploads/documents/${req.file.filename}` : null;
 
         if (!keywords || !answer) {
             return res.status(400).json({ message: 'Ключевые слова и ответ обязательны' });
@@ -188,7 +188,7 @@ exports.updateFaq = async (req, res) => {
         // Новый путь для файла (если есть)
         let file_path = null;
         if (req.file) {
-            file_path = `/uploads/documents/${req.file.filename}`;
+            file_path = `/var/www/hr-bot/uploads/documents/${req.file.filename}`;
         }
 
         // Проверяем, существует ли родительский элемент, если указан

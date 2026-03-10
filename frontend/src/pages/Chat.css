@@ -704,3 +704,26 @@
     font-size: 1rem;
   }
 }
+
+/*---------------------------
+  Стили для ссылок в сообщениях
+----------------------------*/
+.message__link {
+  color: var(--whatsapp-teal);
+  text-decoration: underline;
+  cursor: pointer;
+  word-break: break-all;
+}
+
+.message__link:hover {
+  text-decoration: none;
+  color: var(--whatsapp-green-medium);
+}
+
+.message--incoming .message__link {
+  color: var(--whatsapp-teal);
+}
+
+.message--outgoing .message__link {
+  color: var(--whatsapp-green-medium);
+}

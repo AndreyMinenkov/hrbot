@@ -19,34 +19,41 @@ const AdminLayout: React.FC = () => {
           <h2>HR Бот</h2>
           <span>Админ-панель</span>
         </div>
-        
+
         <nav className="admin-nav">
-          <NavLink to="/admin" className={({ isActive }) => 
+          <NavLink to="/admin" className={({ isActive }) =>
             `admin-nav__link ${isActive ? 'admin-nav__link--active' : ''}`
           } end>
             <i className="fas fa-chart-pie"></i>
             <span>Статистика</span>
           </NavLink>
-          
-          <NavLink to="/admin/faq" className={({ isActive }) => 
+
+          <NavLink to="/admin/faq" className={({ isActive }) =>
             `admin-nav__link ${isActive ? 'admin-nav__link--active' : ''}`
           }>
             <i className="fas fa-question-circle"></i>
             <span>База знаний</span>
           </NavLink>
-          
-          <NavLink to="/admin/users" className={({ isActive }) => 
+
+          <NavLink to="/admin/users" className={({ isActive }) =>
             `admin-nav__link ${isActive ? 'admin-nav__link--active' : ''}`
           }>
             <i className="fas fa-users"></i>
             <span>Пользователи</span>
           </NavLink>
-          
-          <NavLink to="/admin/organizations" className={({ isActive }) => 
+
+          <NavLink to="/admin/organizations" className={({ isActive }) =>
             `admin-nav__link ${isActive ? 'admin-nav__link--active' : ''}`
           }>
             <i className="fas fa-building"></i>
             <span>Организации</span>
+          </NavLink>
+
+          <NavLink to="/admin/templates" className={({ isActive }) =>
+            `admin-nav__link ${isActive ? 'admin-nav__link--active' : ''}`
+          }>
+            <i className="fas fa-file-alt"></i>
+            <span>Шаблоны документов</span>
           </NavLink>
         </nav>
 

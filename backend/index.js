@@ -69,3 +69,14 @@ app.use('/api/organizations', organizationRoutes);
 // Подключаем роуты профиля
 const profileRoutes = require('./routes/profileRoutes');
 app.use('/api/profile', profileRoutes);
+
+// Подключаем роуты для шаблонов документов
+const adminTemplateRoutes = require('./routes/adminTemplateRoutes');
+const documentGenerateRoutes = require('./routes/documentGenerateRoutes');
+
+app.use('/api/admin/templates', adminTemplateRoutes);
+app.use('/api/documents/generate', documentGenerateRoutes);
+
+console.log('=== Routes initialized ===');
+console.log('- Admin templates: /api/admin/templates');
+console.log('- Document generation: /api/documents/generate');

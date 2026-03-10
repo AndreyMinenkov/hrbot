@@ -13,6 +13,8 @@ import AdminStats from './pages/AdminStats';
 import AdminFaq from './pages/AdminFaq';
 import AdminUsers from './pages/AdminUsers';
 import AdminOrganizations from './pages/AdminOrganizations';
+import AdminTemplates from './pages/AdminTemplates';
+import AdminTemplateForm from './pages/AdminTemplateForm';
 import './App.css';
 
 function App() {
@@ -81,6 +83,8 @@ function App() {
             <Route path="faq" element={<AdminFaq />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="organizations" element={<AdminOrganizations />} />
+            <Route path="templates" element={<AdminTemplates />} />
+            <Route path="templates/:id" element={<AdminTemplateForm />} />
           </Route>
 
           {/* 404 - не найдено */}

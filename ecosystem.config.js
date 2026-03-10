@@ -12,6 +12,7 @@ module.exports = {
         PORT: 5001,
         DB_USER: 'postgres',
         DB_PASSWORD: 'Kapapa661109',
+        DEEPSEEK_API_KEY: 'sk-83723fe2ed3941a290bdba11d79cce9c',
         DB_HOST: 'localhost',
         DB_PORT: 5432,
         DB_DATABASE: 'hrbot',
