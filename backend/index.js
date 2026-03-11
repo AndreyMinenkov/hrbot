@@ -80,3 +80,8 @@ app.use('/api/documents/generate', documentGenerateRoutes);
 console.log('=== Routes initialized ===');
 console.log('- Admin templates: /api/admin/templates');
 console.log('- Document generation: /api/documents/generate');
+
+// Подключаем AI роуты
+const aiRoutes = require('./routes/aiRoutes');
+app.use('/api/ai', aiRoutes);
+console.log('- AI analysis: /api/ai/analyze-document');

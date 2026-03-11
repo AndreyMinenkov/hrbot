@@ -36,7 +36,7 @@ export const profile = {
   getData: () =>
     api.get('/profile/data'),
   updateData: (data: any) =>
-    api.put('/profile/update', data),
+    api.put('/profile', data),
   updateAvatar: (formData: FormData) =>
     api.put('/profile/avatar', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }

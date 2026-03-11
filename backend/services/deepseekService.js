@@ -36,7 +36,6 @@ class DeepSeekService {
     }
   }
 
-  // Определение типа запроса (документ или вопрос)
   detectQueryType(query) {
     const docKeywords = [
       'дай', 'скачать', 'бланк', 'шаблон', 'форму', 'заявление',
@@ -44,97 +43,123 @@ class DeepSeekService {
     ];
     
     const lowerQuery = query.toLowerCase();
-    
-    // Проверяем, есть ли ключевые слова запроса документа
     const hasDocIntent = docKeywords.some(keyword => lowerQuery.includes(keyword));
     
     return hasDocIntent ? 'document' : 'question';
   }
 
-  async findRelevantContext(query, pool) {
+  async findRelevantContext(query, pool, userId) {
     try {
       const queryType = this.detectQueryType(query);
       console.log('=== Semantic search with embeddings ===');
       console.log('Query:', query);
       console.log('Query type:', queryType);
+      console.log('User ID:', userId);
+
+      // Получаем организацию пользователя
+      const userResult = await pool.query(
+        'SELECT organization_id FROM users WHERE id = $1',
+        [userId]
+      );
+      const userOrgId = userResult.rows[0]?.organization_id || null;
+      console.log('User organization:', userOrgId);
 
       const queryEmbedding = await this.getEmbedding(query);
       
       if (!queryEmbedding) {
         console.log('Embedding failed, falling back to legacy search');
-        return this.findRelevantContextLegacy(query, pool, queryType);
+        return this.findRelevantContextLegacy(query, pool, queryType, userOrgId);
       }
 
-      // Разные запросы в зависимости от типа
       let sql;
+      let params;
+      
       if (queryType === 'document') {
-        // Ищем только записи с файлами
         sql = `
           SELECT 
-            id, 
-            question, 
-            answer, 
-            category, 
-            keywords, 
-            file_path,
-            1 - (embedding <=> $1) as similarity
-          FROM faq
-          WHERE embedding IS NOT NULL
-            AND file_path IS NOT NULL
-          ORDER BY embedding <=> $1
-          LIMIT 5
+            f.id as faq_id,
+            f.question,
+            f.answer,
+            f.category,
+            f.keywords,
+            f.file_path,
+            d.id as doc_id,
+            d.title as doc_title,
+            1 - (f.embedding <=> $1) as similarity
+          FROM faq f
+          LEFT JOIN documents d ON f.file_path = d.file_path
+          WHERE f.embedding IS NOT NULL
+            AND f.file_path IS NOT NULL
+            AND (f.organization_id IS NULL OR f.organization_id = $2)
+          ORDER BY f.embedding <=> $1
+          LIMIT 1
         `;
-        console.log('Searching for documents only');
+        params = [JSON.stringify(queryEmbedding), userOrgId];
+        console.log('Searching for documents only with organization filter');
       } else {
-        // Ищем все записи
         sql = `
           SELECT 
-            id, 
-            question, 
-            answer, 
-            category, 
-            keywords, 
+            id,
+            question,
+            answer,
+            category,
+            keywords,
             file_path,
             1 - (embedding <=> $1) as similarity
           FROM faq
           WHERE embedding IS NOT NULL
+            AND (organization_id IS NULL OR organization_id = $2)
           ORDER BY embedding <=> $1
           LIMIT 10
         `;
-        console.log('Searching for all FAQs');
+        params = [JSON.stringify(queryEmbedding), userOrgId];
+        console.log('Searching for all FAQs with organization filter');
       }
 
-      const result = await pool.query(sql, [JSON.stringify(queryEmbedding)]);
+      const result = await pool.query(sql, params);
 
       console.log(`Found ${result.rows.length} records via semantic search`);
 
       if (result.rows.length === 0) {
-        return this.findRelevantContextLegacy(query, pool, queryType);
+        return this.findRelevantContextLegacy(query, pool, queryType, userOrgId);
       }
 
       result.rows.forEach(row => {
-        console.log(`ID: ${row.id}, Similarity: ${Math.round(row.similarity * 100)}%, Has file: ${!!row.file_path}`);
+        if (queryType === 'document') {
+          console.log(`FAQ ID: ${row.faq_id}, Doc ID: ${row.doc_id}, Similarity: ${Math.round(row.similarity * 100)}%`);
+        } else {
+          console.log(`ID: ${row.id}, Similarity: ${Math.round(row.similarity * 100)}%`);
+        }
       });
 
       return result.rows.map((row, index) => {
-        let fileInfo = row.file_path ? `\n[Скачать файл](/api/documents/download/3)` : '';
-        return `[Документ ${index + 1} (ID: ${row.id}, схожесть: ${Math.round(row.similarity * 100)}%)]
+        if (queryType === 'document') {
+          let fileInfo = row.doc_id ? `\n[Скачать файл](/api/documents/download/${row.doc_id})` : '';
+          return `[Документ ${index + 1} (ID: ${row.faq_id}, схожесть: ${Math.round(row.similarity * 100)}%)]
 Категория: ${row.category || 'Общая'}
 ${row.question ? `Вопрос: ${row.question}` : ''}
 Ответ: ${row.answer}${fileInfo}`;
+        } else {
+          let fileInfo = row.file_path ? `\n[Скачать файл](/uploads/templates/${row.file_path.split('/').pop()})` : '';
+          return `[Документ ${index + 1} (ID: ${row.id}, схожесть: ${Math.round(row.similarity * 100)}%)]
+Категория: ${row.category || 'Общая'}
+${row.question ? `Вопрос: ${row.question}` : ''}
+Ответ: ${row.answer}${fileInfo}`;
+        }
       }).join('\n\n---\n\n');
 
     } catch (error) {
       console.error('Error in semantic search:', error);
-      return this.findRelevantContextLegacy(query, pool, 'question');
+      return this.findRelevantContextLegacy(query, pool, 'question', null);
     }
   }
 
-  async findRelevantContextLegacy(query, pool, queryType = 'question') {
+  async findRelevantContextLegacy(query, pool, queryType = 'question', userOrgId = null) {
     try {
       console.log('=== Legacy keyword search ===');
       console.log('Query:', query);
       console.log('Query type:', queryType);
+      console.log('User organization:', userOrgId);
 
       const words = query.split(' ').filter(word => word.length > 2);
       let params = [`%${query}%`, `${query}%`];
@@ -147,27 +172,34 @@ ${row.question ? `Вопрос: ${row.question}` : ''}
         words.forEach(word => params.push(`%${word}%`));
       }
 
-      // Для документов добавляем условие на наличие файла
-      const fileCondition = queryType === 'document' ? ' AND file_path IS NOT NULL' : '';
+      const fileCondition = queryType === 'document' ? ' AND f.file_path IS NOT NULL' : '';
+      const orgCondition = userOrgId ? ' AND (f.organization_id IS NULL OR f.organization_id = $' + (params.length + 1) + ')' : '';
 
-      const result = await pool.query(
-        `SELECT id, question, answer, category, keywords, file_path
-         FROM faq
-         WHERE (keywords ILIKE $1
-            OR question ILIKE $1
-            OR answer ILIKE $1
-            OR category ILIKE $1
-            ${wordConditions ? ` OR ${wordConditions}` : ''})
-            ${fileCondition}
-         ORDER BY
-           CASE
-             WHEN question ILIKE $2 THEN 1
-             WHEN keywords ILIKE $2 THEN 2
-             ELSE 3
-           END
-         LIMIT 15`,
-        params
-      );
+      let sql = `
+        SELECT f.id, f.question, f.answer, f.category, f.keywords, f.file_path, d.id as doc_id
+        FROM faq f
+        LEFT JOIN documents d ON f.file_path = d.file_path
+        WHERE (keywords ILIKE $1
+           OR question ILIKE $1
+           OR answer ILIKE $1
+           OR category ILIKE $1
+           ${wordConditions ? ` OR ${wordConditions}` : ''})
+           ${fileCondition}
+           ${orgCondition}
+        ORDER BY
+          CASE
+            WHEN question ILIKE $2 THEN 1
+            WHEN keywords ILIKE $2 THEN 2
+            ELSE 3
+          END
+        LIMIT 15
+      `;
+
+      if (userOrgId) {
+        params.push(userOrgId);
+      }
+
+      const result = await pool.query(sql, params);
 
       console.log(`Found ${result.rows.length} records via legacy search`);
 
@@ -176,7 +208,12 @@ ${row.question ? `Вопрос: ${row.question}` : ''}
       }
 
       return result.rows.map((row, index) => {
-        let fileInfo = row.file_path ? `\n[Скачать файл](/api/documents/download/3)` : '';
+        let fileInfo = '';
+        if (row.doc_id) {
+          fileInfo = `\n[Скачать файл](/api/documents/download/${row.doc_id})`;
+        } else if (row.file_path) {
+          fileInfo = `\n[Скачать файл](/uploads/templates/${row.file_path.split('/').pop()})`;
+        }
         return `[Документ ${index + 1} (ID: ${row.id})]
 Категория: ${row.category || 'Общая'}
 ${row.question ? `Вопрос: ${row.question}` : ''}
@@ -209,6 +246,7 @@ ${row.question ? `Вопрос: ${row.question}` : ''}
       **ВАЖНО:**
       - Если пользователь просит документ (скачать, дай, бланк) - обязательно дай ссылку на файл в формате Markdown: [Название файла](ссылка)
       - Если в базе знаний есть файл - покажи его как кликабельную ссылку
+      - Если документ не найден для организации пользователя, сообщи что документа нет
       - Для общих вопросов давай инструкции
 
       База знаний (информация из официальных источников):

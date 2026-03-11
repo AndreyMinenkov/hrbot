@@ -4,7 +4,7 @@ module.exports = {
       name: 'hr-bot-backend',
       script: '/root/hr-bot/backend/index.js',
       watch: true,
-      ignore_watch: ['node_modules', 'logs', 'uploads'],
+      ignore_watch: ['node_modules', 'logs', 'uploads', 'uploads/**/*'],
       instances: 1,
       exec_mode: 'fork',
       env: {

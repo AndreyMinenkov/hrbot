@@ -1,0 +1,279 @@
+const pool = require('../config/db');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const deepseekService = require('../services/deepseekService');
+
+// Настройка multer для загрузки файлов
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadDir = '/root/hr-bot/uploads/documents/';
+        // Создаем папку, если её нет
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+exports.upload = multer({
+    storage: storage,
+    limits: { fileSize: 50 * 1024 * 1024 }
+});
+
+// Получить все категории
+exports.getCategories = async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT DISTINCT category FROM documents ORDER BY category'
+        );
+        res.json(result.rows.map(row => row.category));
+    } catch (error) {
+        console.error('Ошибка при получении категорий:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+};
+
+// Получить документы по категории
+exports.getDocumentsByCategory = async (req, res) => {
+    try {
+        const { category } = req.params;
+        const result = await pool.query(
+            'SELECT id, title, category, file_path, file_size, downloads_count FROM documents WHERE category = $1',
+                    orgId
+            [category]
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Ошибка при получении документов:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+};
+
+// Скачать документ (увеличивает счетчик скачиваний)
+exports.downloadDocument = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const docResult = await pool.query(
+            'SELECT file_path, title FROM documents WHERE id = $1',
+                    orgId
+            [id]
+        );
+
+        if (docResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Документ не найден' });
+        }
+
+        // Увеличиваем счетчик скачиваний
+        await pool.query(
+            'UPDATE documents SET downloads_count = downloads_count + 1 WHERE id = $1',
+            [id]
+        );
+
+        const filePath = docResult.rows[0].file_path;
+                    orgId
+        
+        // Проверяем, что файл существует
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ message: 'Файл не найден на сервере' });
+        }
+
+        // Отправляем файл
+        res.download(filePath, docResult.rows[0].title + path.extname(filePath));
+        
+    } catch (error) {
+        console.error('Ошибка при скачивании документа:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+};
+
+// ===== Админские методы =====
+
+// Получить все документы (для админа)
+exports.getAllDocuments = async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM documents ORDER BY created_at DESC'
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Ошибка при получении всех документов:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+};
+
+// Создать документ
+exports.createDocument = async (req, res) => {
+    try {
+        const { title, category, fields } = req.body;
+        const { organization_id } = req.body;
+        
+        console.log('Creating document:', { title, category, fields, file: req.file?.filename });
+
+        if (!title || !category || !req.file) {
+            return res.status(400).json({ message: 'Название, категория и файл обязательны' });
+        }
+
+        const file_path = `/root/hr-bot/uploads/documents/${req.file.filename}`;
+                    orgId
+        const file_size = req.file.size;
+        const orgId = organization_id ? parseInt(organization_id) : null;
+        
+        // Парсим поля, если они пришли как строка
+        let fieldsJson = [];
+        if (fields) {
+            try {
+                fieldsJson = JSON.parse(fields);
+            } catch (e) {
+                console.error('Error parsing fields:', e);
+                fieldsJson = [];
+            }
+        }
+
+        // Сохраняем документ
+        const result = await pool.query(
+            `INSERT INTO documents (title, category, file_path, file_size, fields, downloads_count, organization_id)
+                    orgId
+             VALUES ($1, $2, $3, $4, $5, 0, $6) RETURNING *`,
+            [title, category, file_path, file_size, JSON.stringify(fieldsJson), orgId]
+                    orgId
+        );
+
+        console.log('Document created with ID:', result.rows[0].id);
+
+        // Создаем запись в FAQ для этого документа
+        try {
+            const keywords = title.toLowerCase()
+                .replace(/[^\w\s]/g, '')
+                .split(' ')
+                .filter(word => word.length > 2)
+                .join(', ');
+
+            const faqResult = await pool.query(
+                `INSERT INTO faq (keywords, question, answer, category, file_path, organization_id)
+                    orgId
+                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+                [
+                    keywords,
+                    `Скачать ${title}`,
+                    `Скачайте документ "${title}". После заполнения передайте в HR.`,
+                    category,
+                    file_path
+                    orgId
+                ]
+            );
+            console.log(`FAQ record created with ID: ${faqResult.rows[0].id} for document ${result.rows[0].id}`);
+
+            // Генерируем эмбеддинг для новой записи FAQ
+            try {
+                const text = `Скачать ${title}`;
+                const embedding = await deepseekService.getEmbedding(text);
+                if (embedding) {
+                    await pool.query(
+                        'UPDATE faq SET embedding = $1 WHERE id = $2',
+                        [JSON.stringify(embedding), faqResult.rows[0].id]
+                    );
+                    console.log(`Generated embedding for FAQ ${faqResult.rows[0].id}`);
+                }
+            } catch (embedError) {
+                console.error(`Error generating embedding for FAQ ${faqResult.rows[0].id}:`, embedError);
+            }
+
+        } catch (faqError) {
+            console.error('Error creating FAQ record for document:', faqError);
+            // Не прерываем основной процесс, если не удалось создать FAQ
+        }
+
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error('Ошибка при создании документа:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+};
+
+// Обновить документ
+exports.updateDocument = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, category } = req.body;
+
+        let query = 'UPDATE documents SET title = $1, category = $2';
+        const params = [title, category];
+        let paramIndex = 3;
+
+        if (req.file) {
+            // Получаем старый файл для удаления
+            const oldDoc = await pool.query('SELECT file_path FROM documents WHERE id = $1', [id]);
+                    orgId
+            if (oldDoc.rows.length > 0 && oldDoc.rows[0].file_path) {
+                    orgId
+                try {
+                    fs.unlinkSync(oldDoc.rows[0].file_path);
+                    orgId
+                } catch (err) {
+                    console.warn('Failed to delete old file:', err);
+                }
+            }
+
+            const file_path = `/root/hr-bot/uploads/documents/${req.file.filename}`;
+                    orgId
+            query += `, file_path = $${paramIndex}`;
+                    orgId
+            params.push(file_path);
+                    orgId
+            paramIndex++;
+        }
+
+        query += ` WHERE id = $${paramIndex} RETURNING *`;
+        params.push(id);
+
+        const result = await pool.query(query, params);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Документ не найден' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Ошибка при обновлении документа:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+};
+
+// Удалить документ
+exports.deleteDocument = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Получаем информацию о файле перед удалением
+        const doc = await pool.query('SELECT file_path FROM documents WHERE id = $1', [id]);
+                    orgId
+
+        const result = await pool.query('DELETE FROM documents WHERE id = $1 RETURNING *', [id]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Документ не найден' });
+        }
+
+        // Удаляем файл
+        if (doc.rows.length > 0 && doc.rows[0].file_path) {
+                    orgId
+            try {
+                fs.unlinkSync(doc.rows[0].file_path);
+                    orgId
+            } catch (err) {
+                console.warn('Failed to delete file:', err);
+            }
+        }
+
+        res.json({ message: 'Документ удален' });
+    } catch (error) {
+        console.error('Ошибка при удалении документа:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+};

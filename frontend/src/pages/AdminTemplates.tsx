@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import BulkUploadTemplates from './BulkUploadTemplates';
 import './AdminTemplates.css';
 
 interface Template {
@@ -17,8 +18,7 @@ interface Template {
 const AdminTemplates: React.FC = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const navigate = useNavigate();
 
   const fetchTemplates = async () => {
@@ -88,6 +88,14 @@ const AdminTemplates: React.FC = () => {
           >
             <i className="fas fa-plus"></i>
             Загрузить шаблон
+          </button>
+          <button 
+            className="faq-button-add-btn" 
+            onClick={() => setShowBulkModal(true)}
+            style={{ marginLeft: '10px', background: 'var(--ui-dark-gray)' }}
+          >
+            <i className="fas fa-cloud-upload-alt"></i>
+            Массовая загрузка
           </button>
         </div>
       </div>
@@ -179,6 +187,14 @@ const AdminTemplates: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Модальное окно массовой загрузки */}
+      {showBulkModal && (
+        <BulkUploadTemplates onClose={() => {
+          setShowBulkModal(false);
+          fetchTemplates();
+        }} />
+      )}
     </div>
   );
 };

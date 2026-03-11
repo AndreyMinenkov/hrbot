@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const deepseekService = require('../services/deepseekService');
 
 // Настройка multer для загрузки файлов
 const storage = multer.diskStorage({
@@ -128,7 +129,7 @@ exports.getRootFaq = async (req, res) => {
 exports.createFaq = async (req, res) => {
     try {
         const { keywords, question, answer, category, parent_id, buttons } = req.body;
-        const file_path = req.file ? `//var/www/hr-bot/uploads/documents/${req.file.filename}` : null;
+        const file_path = req.file ? `/var/www/hr-bot/uploads/documents/${req.file.filename}` : null;
 
         if (!keywords || !answer) {
             return res.status(400).json({ message: 'Ключевые слова и ответ обязательны' });
@@ -166,6 +167,23 @@ exports.createFaq = async (req, res) => {
              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
             [keywords, question || null, answer, category || null, file_path, parent_id || null, buttonsJson]
         );
+
+        // Генерируем эмбеддинг для новой записи
+        try {
+            const text = `${result.rows[0].question || ''} ${result.rows[0].answer || ''}`.trim();
+            if (text) {
+                const embedding = await deepseekService.getEmbedding(text);
+                if (embedding) {
+                    await pool.query(
+                        'UPDATE faq SET embedding = $1 WHERE id = $2',
+                        [JSON.stringify(embedding), result.rows[0].id]
+                    );
+                    console.log(`Generated embedding for FAQ ${result.rows[0].id}`);
+                }
+            }
+        } catch (embedError) {
+            console.error(`Error generating embedding for FAQ ${result.rows[0].id}:`, embedError);
+        }
 
         res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -253,6 +271,23 @@ exports.updateFaq = async (req, res) => {
 
         if (result.rows.length === 0) {
             return res.status(404).json({ message: 'Запись не найдена' });
+        }
+
+        // Генерируем новый эмбеддинг для обновленной записи
+        try {
+            const text = `${result.rows[0].question || ''} ${result.rows[0].answer || ''}`.trim();
+            if (text) {
+                const embedding = await deepseekService.getEmbedding(text);
+                if (embedding) {
+                    await pool.query(
+                        'UPDATE faq SET embedding = $1 WHERE id = $2',
+                        [JSON.stringify(embedding), result.rows[0].id]
+                    );
+                    console.log(`Regenerated embedding for FAQ ${result.rows[0].id}`);
+                }
+            }
+        } catch (embedError) {
+            console.error(`Error regenerating embedding for FAQ ${result.rows[0].id}:`, embedError);
         }
 
         // Если был старый файл и загружен новый - удаляем старый
@@ -700,6 +735,23 @@ exports.updateMindmapNode = async (req, res) => {
             return res.status(404).json({ message: 'Узел не найден' });
         }
 
+        // Генерируем новый эмбеддинг для обновленного узла
+        try {
+            const text = `${result.rows[0].question || ''} ${result.rows[0].answer || ''}`.trim();
+            if (text) {
+                const embedding = await deepseekService.getEmbedding(text);
+                if (embedding) {
+                    await pool.query(
+                        'UPDATE faq SET embedding = $1 WHERE id = $2',
+                        [JSON.stringify(embedding), result.rows[0].id]
+                    );
+                    console.log(`Regenerated embedding for mindmap node ${result.rows[0].id}`);
+                }
+            }
+        } catch (embedError) {
+            console.error(`Error regenerating embedding for mindmap node ${result.rows[0].id}:`, embedError);
+        }
+
         res.json(result.rows[0]);
     } catch (error) {
         console.error('Ошибка при обновлении узла:', error);
@@ -737,6 +789,23 @@ exports.createMindmapNode = async (req, res) => {
              VALUES ($1, $2, $3, $4) RETURNING *`,
             [keywords, question || null, answer, parentId || null]
         );
+
+        // Генерируем эмбеддинг для нового узла
+        try {
+            const text = `${result.rows[0].question || ''} ${result.rows[0].answer || ''}`.trim();
+            if (text) {
+                const embedding = await deepseekService.getEmbedding(text);
+                if (embedding) {
+                    await pool.query(
+                        'UPDATE faq SET embedding = $1 WHERE id = $2',
+                        [JSON.stringify(embedding), result.rows[0].id]
+                    );
+                    console.log(`Generated embedding for mindmap node ${result.rows[0].id}`);
+                }
+            }
+        } catch (embedError) {
+            console.error(`Error generating embedding for mindmap node ${result.rows[0].id}:`, embedError);
+        }
 
         res.status(201).json(result.rows[0]);
     } catch (error) {

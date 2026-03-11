@@ -3,20 +3,21 @@ const deepseekService = require('../services/deepseekService');
 
 // Поиск по базе знаний с DeepSeek
 exports.searchFaq = async (req, res) => {
-    console.log("=== searchFaq called ===");
-    console.log("Query:", req.query);
-    console.log("User:", req.user.id);
     try {
         const { query } = req.query;
         const userId = req.user.id;
+
+        console.log('=== searchFaq called ===');
+        console.log('Query:', req.query);
+        console.log('User:', userId);
 
         if (!query) {
             return res.status(400).json({ message: 'Поисковый запрос обязателен' });
         }
 
-        // Ищем релевантный контекст в базе знаний
-        const context = await deepseekService.findRelevantContext(query, pool);
-        
+        // Ищем релевантный контекст в базе знаний с учётом организации пользователя
+        const context = await deepseekService.findRelevantContext(query, pool, userId);
+
         // Отправляем запрос в DeepSeek с историей диалога
         const answer = await deepseekService.ask(userId, query, context || 'Информация не найдена в базе знаний');
 

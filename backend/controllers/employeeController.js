@@ -1,12 +1,25 @@
 const pool = require('../config/db');
 
-// Получение данных сотрудника (остаток отпуска)
+// Получить данные сотрудника для профиля
 exports.getEmployeeData = async (req, res) => {
     try {
         const userId = req.user.id;
-        
+
         const result = await pool.query(
-            'SELECT id, full_name, login, role, vacation_days_total, vacation_days_left, avatar_url FROM users WHERE id = $1',
+            `SELECT 
+                u.id,
+                u.full_name,
+                u.login,
+                u.role,
+                u.vacation_days_total,
+                u.vacation_days_left,
+                u.avatar_url,
+                u.department,
+                u.organization_id,
+                o.name as organization_name
+            FROM users u
+            LEFT JOIN organizations o ON u.organization_id = o.id
+            WHERE u.id = $1`,
             [userId]
         );
 
@@ -14,13 +27,25 @@ exports.getEmployeeData = async (req, res) => {
             return res.status(404).json({ message: 'Сотрудник не найден' });
         }
 
-        res.json({
-            full_name: result.rows[0].full_name,
-            vacation_days_total: result.rows[0].vacation_days_total,
-            vacation_days_left: result.rows[0].vacation_days_left,
-            avatar_url: result.rows[0].avatar_url
-        });
+        const user = result.rows[0];
         
+        // Формируем ответ
+        const response = {
+            id: user.id,
+            full_name: user.full_name,
+            login: user.login,
+            role: user.role,
+            vacation_days_total: user.vacation_days_total,
+            vacation_days_left: user.vacation_days_left,
+            avatar_url: user.avatar_url,
+            department: user.department,
+            organization: user.organization_id ? {
+                id: user.organization_id,
+                name: user.organization_name
+            } : null
+        };
+
+        res.json(response);
     } catch (error) {
         console.error('Ошибка при получении данных сотрудника:', error);
         res.status(500).json({ message: 'Ошибка сервера' });
