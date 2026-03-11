@@ -123,3 +123,29 @@ exports.updateProfile = async (req, res) => {
         res.status(500).json({ message: 'Ошибка сервера' });
     }
 };
+
+// Обновление аватара пользователя
+exports.updateAvatar = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'Файл не загружен' });
+        }
+
+        const userId = req.user.id;
+        const avatar_url = `/uploads/avatars/${req.file.filename}`;
+
+        // Обновляем аватар в базе
+        await pool.query(
+            'UPDATE users SET avatar_url = $1 WHERE id = $2',
+            [avatar_url, userId]
+        );
+
+        res.json({
+            message: 'Аватар обновлен успешно',
+            avatar_url
+        });
+    } catch (error) {
+        console.error('Ошибка при обновлении аватара:', error);
+        res.status(500).json({ message: 'Ошибка сервера' });
+    }
+};

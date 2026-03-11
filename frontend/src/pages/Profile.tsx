@@ -38,10 +38,34 @@ const Profile: React.FC = () => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const loadAvatar = async () => {
+      if (!data?.avatar_url) return;
+      
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/profile/avatar', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          setAvatarUrl(url);
+        }
+      } catch (error) {
+        console.error('Error loading avatar:', error);
+      }
+    };
+    loadAvatar();
+  }, [data]);
 
   const fetchData = async () => {
     try {
@@ -103,7 +127,6 @@ const Profile: React.FC = () => {
       });
       setIsEditing(false);
       
-      // Обновляем локальное состояние
       if (data) {
         const selectedOrg = organizationsList.find(org => org.id === editOrgId);
         setData({
@@ -114,7 +137,7 @@ const Profile: React.FC = () => {
         });
       }
       
-      fetchData(); // Для подстраховки
+      fetchData();
     } catch (error) {
       console.error('Error updating profile:', error);
       setError('Ошибка обновления');
@@ -140,7 +163,6 @@ const Profile: React.FC = () => {
 
   return (
     <div className="profile-page">
-      {/* Шапка профиля как в WhatsApp */}
       <div className="profile-header">
         <div className="profile-header__back" onClick={() => navigate(-1)}>
           <i className="fas fa-arrow-left"></i>
@@ -152,13 +174,12 @@ const Profile: React.FC = () => {
       </div>
 
       <div className="profile-content">
-        {/* Аватар профиля */}
         <div className="profile-avatar-section">
           <div className="profile-avatar">
             {avatarPreview ? (
               <img src={avatarPreview} alt="Preview" />
-            ) : data.avatar_url ? (
-              <img src={data.avatar_url} alt="Avatar" />
+            ) : avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar" />
             ) : (
               <div className="profile-avatar__placeholder">
                 {data.full_name.charAt(0)}
@@ -196,11 +217,9 @@ const Profile: React.FC = () => {
           )}
         </div>
 
-        {/* Информационные секции */}
         <div className="profile-section">
           <div className="profile-section__title">Основная информация</div>
           <div className="profile-section__content">
-            {/* ФИО */}
             <div className="profile-info-item">
               <div className="profile-info-item__icon">
                 <i className="fas fa-user"></i>
@@ -214,7 +233,6 @@ const Profile: React.FC = () => {
               </div>
             </div>
 
-            {/* Логин */}
             <div className="profile-info-item">
               <div className="profile-info-item__icon">
                 <i className="fas fa-envelope"></i>
@@ -228,7 +246,6 @@ const Profile: React.FC = () => {
               </div>
             </div>
 
-            {/* Отдел (редактирование или просмотр) */}
             {isEditing ? (
               <div className="profile-info-item">
                 <div className="profile-info-item__icon">
@@ -262,7 +279,6 @@ const Profile: React.FC = () => {
               </div>
             )}
 
-            {/* Организация (редактирование или просмотр) */}
             {isEditing ? (
               <div className="profile-info-item">
                 <div className="profile-info-item__icon">
@@ -303,7 +319,6 @@ const Profile: React.FC = () => {
           </div>
         </div>
 
-        {/* Кнопки действий */}
         <div className="profile-actions">
           {isEditing ? (
             <>

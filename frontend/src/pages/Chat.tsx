@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { faq, stats } from '../services/api';
+import { chat } from '../services/chat';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import EmojiPicker from 'emoji-picker-react';
@@ -19,15 +20,7 @@ interface Message {
 const Chat: React.FC = () => {
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: 'Здравствуйте! Задайте мне вопрос, и я постараюсь найти ответ в базе знаний.',
-      sender: 'bot',
-      timestamp: new Date(),
-      status: 'read'
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -36,6 +29,47 @@ const Chat: React.FC = () => {
   const menuRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Загружаем историю при монтировании
+  useEffect(() => {
+    loadChatHistory();
+  }, []);
+
+  const loadChatHistory = async () => {
+    try {
+      const response = await chat.getHistory(15);
+      if (response.data && response.data.length > 0) {
+        // Преобразуем в формат сообщений
+        const historyMessages = response.data.map((msg: any) => ({
+          id: msg.id,
+          text: msg.text,
+          sender: msg.sender,
+          timestamp: new Date(msg.timestamp),
+          status: 'read'
+        }));
+        setMessages(historyMessages);
+      } else {
+        // Если истории нет, добавляем приветствие
+        setMessages([{
+          id: 'welcome',
+          text: 'Здравствуйте! Задайте мне вопрос, и я постараюсь найти ответ в базе знаний.',
+          sender: 'bot',
+          timestamp: new Date(),
+          status: 'read'
+        }]);
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+      // При ошибке показываем приветствие
+      setMessages([{
+        id: 'welcome',
+        text: 'Здравствуйте! Задайте мне вопрос, и я постараюсь найти ответ в базе знаний.',
+        sender: 'bot',
+        timestamp: new Date(),
+        status: 'read'
+      }]);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -62,27 +96,23 @@ const Chat: React.FC = () => {
   const formatMessageWithLinks = (text: string): React.ReactNode => {
     if (!text) return text;
 
-    // Ищем паттерн [текст](url)
     const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
     const urlRegex = /(https?:\/\/[^\s]+)/g;
-    
+
     let lastIndex = 0;
     const parts: React.ReactNode[] = [];
     let match: RegExpExecArray | null;
 
-    // Сначала ищем Markdown-ссылки
     while ((match = markdownLinkRegex.exec(text)) !== null) {
-      // Добавляем текст до ссылки
       if (match.index > lastIndex) {
         parts.push(text.substring(lastIndex, match.index));
       }
-      
-      // Добавляем ссылку
+
       const linkText = match[1];
       const linkUrl = match[2].startsWith('http') ? match[2] : `https://31.130.155.16:8443${match[2]}`;
-      
+
       parts.push(
-        <a 
+        <a
           key={`link-${match.index}`}
           href={linkUrl}
           target="_blank"
@@ -96,26 +126,24 @@ const Chat: React.FC = () => {
           {linkText}
         </a>
       );
-      
+
       lastIndex = match.index + match[0].length;
     }
 
-    // Добавляем оставшийся текст
     if (lastIndex < text.length) {
       const remainingText = text.substring(lastIndex);
-      
-      // Ищем обычные URL в оставшемся тексте
+
       let urlLastIndex = 0;
       let urlMatch: RegExpExecArray | null;
       const urlParts: React.ReactNode[] = [];
-      
+
       while ((urlMatch = urlRegex.exec(remainingText)) !== null) {
         if (urlMatch.index > urlLastIndex) {
           urlParts.push(remainingText.substring(urlLastIndex, urlMatch.index));
         }
-        
+
         const currentUrl = urlMatch[0];
-        
+
         urlParts.push(
           <a
             key={`url-${urlMatch.index}`}
@@ -131,14 +159,14 @@ const Chat: React.FC = () => {
             {currentUrl}
           </a>
         );
-        
+
         urlLastIndex = urlMatch.index + urlMatch[0].length;
       }
-      
+
       if (urlLastIndex < remainingText.length) {
         urlParts.push(remainingText.substring(urlLastIndex));
       }
-      
+
       if (urlParts.length > 0) {
         parts.push(...urlParts);
       } else {
@@ -149,63 +177,51 @@ const Chat: React.FC = () => {
     return parts.length > 0 ? <>{parts}</> : text;
   };
 
-  // Улучшенная функция скачивания, работающая на мобильных устройствах
   const handleDownloadLink = async (url: string) => {
     try {
-      // Пытаемся скачать файл через fetch
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Cache-Control': 'no-cache',
         }
       });
-      
+
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
-      
+
       const blob = await response.blob();
-      
-      // Определяем тип файла по расширению
+
       const extension = url.split('.').pop()?.toLowerCase() || 'docx';
       let mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      
+
       if (extension === 'pdf') {
         mimeType = 'application/pdf';
       } else if (extension === 'doc') {
         mimeType = 'application/msword';
       }
-      
-      // Создаем blob с правильным MIME-типом
+
       const blobWithType = new Blob([blob], { type: mimeType });
       const blobUrl = window.URL.createObjectURL(blobWithType);
-      
-      // Создаем и кликаем по ссылке
+
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = url.split('/').pop() || 'document.docx';
-      
-      // Для мобильных устройств добавляем атрибут target
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      
+
       document.body.appendChild(link);
-      
-      // Используем setTimeout для лучшей совместимости с мобильными
+
       setTimeout(() => {
         link.click();
-        
-        // Очищаем после скачивания
         setTimeout(() => {
           document.body.removeChild(link);
           window.URL.revokeObjectURL(blobUrl);
         }, 100);
       }, 100);
-      
+
     } catch (error) {
       console.error('Error downloading file:', error);
-      
-      // Fallback: открываем в новой вкладке
       const link = document.createElement('a');
       link.href = url;
       link.target = '_blank';
@@ -236,7 +252,7 @@ const Chat: React.FC = () => {
 
     try {
       let response;
-      
+
       if (buttonId) {
         try {
           console.log('Fetching FAQ by ID:', buttonId);
@@ -255,55 +271,55 @@ const Chat: React.FC = () => {
         response = await faq.search(messageText);
       }
 
+      let botMessageText = '';
+      let botMessageButtons = undefined;
+      let botFilePath = null;
+      let botFileName = null;
+
       if (response.data.length > 0) {
         const faqItem = response.data[0];
-        
-        let fileName = null;
+        botMessageText = faqItem.answer;
+        botMessageButtons = faqItem.buttons && faqItem.buttons.length > 0 ? faqItem.buttons : undefined;
+
         if (faqItem.file_path) {
           const parts = faqItem.file_path.split('/');
-          fileName = parts[parts.length - 1];
-        }
-        
-        const botMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          text: faqItem.answer,
-          sender: 'bot',
-          timestamp: new Date(),
-          file_path: faqItem.file_path,
-          file_name: fileName,
-          status: 'read',
-          buttons: faqItem.buttons && faqItem.buttons.length > 0 ? faqItem.buttons : undefined
-        };
-
-        setMessages(prev =>
-          prev.map(msg =>
-            msg.id === userMessage.id ? { ...msg, status: 'read' } : msg
-          )
-        );
-
-        setMessages(prev => [...prev, botMessage]);
-        
-        try {
-          await stats.saveChat(messageText, botMessage.text);
-        } catch (statsError) {
-          console.error('Error saving stats:', statsError);
+          botFileName = parts[parts.length - 1];
+          botFilePath = faqItem.file_path;
         }
       } else {
-        const botMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          text: 'Извините, я не нашел ответ на ваш вопрос. Пожалуйста, обратитесь к HR-специалисту.',
-          sender: 'bot',
-          timestamp: new Date(),
-          status: 'read'
-        };
+        botMessageText = 'Извините, я не нашел ответ на ваш вопрос. Пожалуйста, обратитесь к HR-специалисту.';
+      }
 
-        setMessages(prev => [...prev, botMessage]);
-        
-        try {
-          await stats.saveChat(messageText, botMessage.text);
-        } catch (statsError) {
-          console.error('Error saving stats:', statsError);
-        }
+      const botMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: botMessageText,
+        sender: 'bot',
+        timestamp: new Date(),
+        file_path: botFilePath,
+        file_name: botFileName,
+        status: 'read',
+        buttons: botMessageButtons
+      };
+
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === userMessage.id ? { ...msg, status: 'read' } : msg
+        )
+      );
+
+      setMessages(prev => [...prev, botMessage]);
+
+      // Сохраняем в историю
+      try {
+        await chat.saveMessage(messageText, botMessageText);
+      } catch (saveError) {
+        console.error('Error saving to history:', saveError);
+      }
+
+      try {
+        await stats.saveChat(messageText, botMessageText);
+      } catch (statsError) {
+        console.error('Error saving stats:', statsError);
       }
 
     } catch (error) {
@@ -448,7 +464,7 @@ const Chat: React.FC = () => {
                 </div>
               </div>
             </div>
-            
+
             {message.sender === 'bot' && message.buttons && message.buttons.length > 0 && (
               <div className="message-buttons">
                 {message.buttons.map((button, index) => (

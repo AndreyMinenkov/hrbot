@@ -85,3 +85,8 @@ console.log('- Document generation: /api/documents/generate');
 const aiRoutes = require('./routes/aiRoutes');
 app.use('/api/ai', aiRoutes);
 console.log('- AI analysis: /api/ai/analyze-document');
+
+// Подключаем роуты чата
+const chatRoutes = require('./routes/chatRoutes');
+app.use('/api/chat', chatRoutes);
+console.log('- Chat history: /api/chat/history, /api/chat/save');
