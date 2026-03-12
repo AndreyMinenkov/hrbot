@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { faq, stats } from '../services/api';
+import { faq } from '../services/api';
 import { chat } from '../services/chat';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -25,10 +25,41 @@ const Chat: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Загружаем аватар
+  useEffect(() => {
+    const loadAvatar = async () => {
+      if (!user?.avatar_url) return;
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/profile/avatar', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          setAvatarUrl(url);
+        }
+      } catch (error) {
+        console.error('Error loading avatar:', error);
+      }
+    };
+    loadAvatar();
+
+    return () => {
+      if (avatarUrl) {
+        URL.revokeObjectURL(avatarUrl);
+      }
+    };
+  }, [user]);
 
   // Загружаем историю при монтировании
   useEffect(() => {
@@ -39,15 +70,12 @@ const Chat: React.FC = () => {
     try {
       const response = await chat.getHistory(15);
       if (response.data && response.data.length > 0) {
-        // Преобразуем в формат сообщений
-        const historyMessages = response.data.map((msg: any) => ({
-          id: msg.id,
-          text: msg.text,
-          sender: msg.sender,
-          timestamp: new Date(msg.timestamp),
-          status: 'read'
+        // Преобразуем строку timestamp в объект Date
+        const messagesWithDate = response.data.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
         }));
-        setMessages(historyMessages);
+        setMessages(messagesWithDate);
       } else {
         // Если истории нет, добавляем приветствие
         setMessages([{
@@ -60,7 +88,6 @@ const Chat: React.FC = () => {
       }
     } catch (error) {
       console.error('Error loading chat history:', error);
-      // При ошибке показываем приветствие
       setMessages([{
         id: 'welcome',
         text: 'Здравствуйте! Задайте мне вопрос, и я постараюсь найти ответ в базе знаний.',
@@ -309,17 +336,11 @@ const Chat: React.FC = () => {
 
       setMessages(prev => [...prev, botMessage]);
 
-      // Сохраняем в историю
+      // Сохраняем в историю (только один раз)
       try {
         await chat.saveMessage(messageText, botMessageText);
       } catch (saveError) {
         console.error('Error saving to history:', saveError);
-      }
-
-      try {
-        await stats.saveChat(messageText, botMessageText);
-      } catch (statsError) {
-        console.error('Error saving stats:', statsError);
       }
 
     } catch (error) {
@@ -391,7 +412,19 @@ const Chat: React.FC = () => {
           <div className="chat-header__back" onClick={() => window.history.back()}>
             <i className="fas fa-arrow-left"></i>
           </div>
-          <div className="chat-header__avatar"></div>
+          <div className="chat-header__avatar">
+            {avatarUrl ? (
+              <img 
+                src={avatarUrl} 
+                alt="avatar" 
+                className="chat-header__avatar-img"
+              />
+            ) : (
+              <div className="chat-header__avatar-placeholder">
+                {user?.full_name?.charAt(0) || '?'}
+              </div>
+            )}
+          </div>
           <div className="chat-header__info">
             <div className="chat-header__title">HR Бот</div>
             <div className="chat-header__subtitle">онлайн</div>

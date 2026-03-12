@@ -10,40 +10,22 @@ router.get('/history', authMiddleware, async (req, res) => {
     const limit = parseInt(req.query.limit) || 15;
 
     const result = await pool.query(
-      `SELECT 
+      `SELECT
         id,
-        message,
-        bot_response,
-        timestamp
-       FROM chat_history 
-       WHERE user_id = $1 
-       ORDER BY timestamp ASC 
+        sender,
+        text,
+        created_at as timestamp
+       FROM chat_history
+       WHERE user_id = $1
+       ORDER BY created_at ASC
        LIMIT $2`,
       [userId, limit]
     );
 
-    // Преобразуем в формат сообщений для чата
-    const messages = [];
-    result.rows.forEach(row => {
-      if (row.message) {
-        messages.push({
-          id: `user-${row.id}`,
-          text: row.message,
-          sender: 'user',
-          timestamp: row.timestamp
-        });
-      }
-      if (row.bot_response) {
-        messages.push({
-          id: `bot-${row.id}`,
-          text: row.bot_response,
-          sender: 'bot',
-          timestamp: row.timestamp
-        });
-      }
-    });
+    console.log(`Found ${result.rows.length} messages for user ${userId}`);
 
-    res.json(messages);
+    // Возвращаем как есть, без преобразования
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching chat history:', error);
     res.status(500).json({ message: 'Ошибка сервера' });
@@ -56,20 +38,30 @@ router.post('/save', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const { message, botResponse } = req.body;
 
+    console.log(`Saving message for user ${userId}: "${message.substring(0, 30)}..."`);
+
+    // Вставляем сообщение пользователя
     await pool.query(
-      `INSERT INTO chat_history (user_id, message, bot_response)
-       VALUES ($1, $2, $3)`,
-      [userId, message, botResponse]
+      `INSERT INTO chat_history (user_id, sender, text)
+       VALUES ($1, 'user', $2)`,
+      [userId, message]
+    );
+
+    // Вставляем ответ бота
+    await pool.query(
+      `INSERT INTO chat_history (user_id, sender, text)
+       VALUES ($1, 'bot', $2)`,
+      [userId, botResponse]
     );
 
     // Удаляем старые сообщения, оставляем только последние 50
     await pool.query(
-      `DELETE FROM chat_history 
-       WHERE user_id = $1 
+      `DELETE FROM chat_history
+       WHERE user_id = $1
        AND id NOT IN (
-         SELECT id FROM chat_history 
-         WHERE user_id = $1 
-         ORDER BY timestamp DESC 
+         SELECT id FROM chat_history
+         WHERE user_id = $1
+         ORDER BY created_at DESC
          LIMIT 50
        )`,
       [userId]

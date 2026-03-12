@@ -729,3 +729,24 @@
 .message--outgoing .message__link {
   color: var(--whatsapp-green-medium);
 }
+
+.chat-header__avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.chat-header__avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(45deg, var(--whatsapp-green-medium), var(--whatsapp-teal));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 18px;
+  text-transform: uppercase;
+}

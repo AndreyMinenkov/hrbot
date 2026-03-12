@@ -3,23 +3,28 @@ const pool = require('../config/db');
 // Получение статистики (только для админа)
 exports.getStats = async (req, res) => {
     try {
-        // Диалоги с ботом за сегодня
+        // Диалоги с ботом за сегодня (считаем уникальные пары user+bot по времени)
         const todayDialogs = await pool.query(
-            `SELECT COUNT(*) as count FROM chat_history
-             WHERE DATE(timestamp) = CURRENT_DATE`
+            `SELECT COUNT(DISTINCT DATE_TRUNC('minute', created_at)) as count 
+             FROM chat_history
+             WHERE DATE(created_at) = CURRENT_DATE
+             AND user_id IS NOT NULL`
         );
 
         // Диалоги с ботом за неделю
         const weekDialogs = await pool.query(
-            `SELECT COUNT(*) as count FROM chat_history
-             WHERE timestamp >= NOW() - INTERVAL '7 days'`
+            `SELECT COUNT(DISTINCT DATE_TRUNC('minute', created_at)) as count 
+             FROM chat_history
+             WHERE created_at >= NOW() - INTERVAL '7 days'
+             AND user_id IS NOT NULL`
         );
 
-        // Самые популярные вопросы (топ-5)
+        // Самые популярные вопросы (топ-5) — только сообщения от user
         const popularQuestions = await pool.query(
-            `SELECT message, COUNT(*) as count
+            `SELECT text as message, COUNT(*) as count
              FROM chat_history
-             GROUP BY message
+             WHERE sender = 'user'
+             GROUP BY text
              ORDER BY count DESC
              LIMIT 5`
         );
@@ -39,19 +44,19 @@ exports.getStats = async (req, res) => {
             'SELECT COUNT(*) as count FROM users'
         );
 
-        // Активность по дням (последние 7 дней)
+        // Активность по дням (последние 7 дней) — считаем все сообщения
         const dailyActivity = await pool.query(
-            `SELECT DATE(timestamp) as date, COUNT(*) as count
+            `SELECT DATE(created_at) as date, COUNT(*) as count
              FROM chat_history
-             WHERE timestamp >= NOW() - INTERVAL '7 days'
-             GROUP BY DATE(timestamp)
+             WHERE created_at >= NOW() - INTERVAL '7 days'
+             GROUP BY DATE(created_at)
              ORDER BY date DESC`
         );
 
         res.json({
             dialogs: {
-                today: parseInt(todayDialogs.rows[0].count),
-                week: parseInt(weekDialogs.rows[0].count)
+                today: parseInt(todayDialogs.rows[0].count) || 0,
+                week: parseInt(weekDialogs.rows[0].count) || 0
             },
             popular_questions: popularQuestions.rows.map(row => ({
                 question: row.message,
@@ -84,10 +89,19 @@ exports.saveChat = async (req, res) => {
             return res.status(400).json({ message: 'Запрос не может быть пустым' });
         }
 
+        // Сохраняем сообщение пользователя
         await pool.query(
-            'INSERT INTO chat_history (user_id, message, bot_response) VALUES ($1, $2, $3)',
-            [user_id, query, response || '']
+            'INSERT INTO chat_history (user_id, sender, text) VALUES ($1, $2, $3)',
+            [user_id, 'user', query]
         );
+
+        // Сохраняем ответ бота (если есть)
+        if (response) {
+            await pool.query(
+                'INSERT INTO chat_history (user_id, sender, text) VALUES ($1, $2, $3)',
+                [user_id, 'bot', response]
+            );
+        }
 
         res.status(201).json({ message: 'История сохранена' });
     } catch (error) {
@@ -102,11 +116,11 @@ exports.getUserChatHistory = async (req, res) => {
         const { user_id } = req.params;
 
         const result = await pool.query(
-            `SELECT ch.id, ch.message, ch.bot_response, ch.timestamp, u.full_name
+            `SELECT ch.id, ch.sender, ch.text, ch.created_at as timestamp, u.full_name
              FROM chat_history ch
              JOIN users u ON ch.user_id = u.id
              WHERE ch.user_id = $1
-             ORDER BY ch.timestamp DESC`,
+             ORDER BY ch.created_at DESC`,
             [user_id]
         );
 
@@ -121,11 +135,11 @@ exports.getUserChatHistory = async (req, res) => {
 exports.getAllChatHistory = async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT ch.id, ch.message, ch.bot_response, ch.timestamp,
+            `SELECT ch.id, ch.sender, ch.text, ch.created_at as timestamp,
                     u.id as user_id, u.full_name, u.login
              FROM chat_history ch
              JOIN users u ON ch.user_id = u.id
-             ORDER BY ch.timestamp DESC
+             ORDER BY ch.created_at DESC
              LIMIT 100`
         );
 
