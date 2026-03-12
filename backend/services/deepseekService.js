@@ -16,7 +16,7 @@ class DeepSeekService {
     try {
       console.log('=== Getting embedding from Ollama ===');
       console.log('Text length:', text.length);
-      
+
       const response = await axios.post(
         OLLAMA_API_URL,
         {
@@ -27,7 +27,7 @@ class DeepSeekService {
           timeout: 30000
         }
       );
-      
+
       console.log('Embedding received, length:', response.data.embedding.length);
       return response.data.embedding;
     } catch (error) {
@@ -41,10 +41,10 @@ class DeepSeekService {
       'дай', 'скачать', 'бланк', 'шаблон', 'форму', 'заявление',
       'doc', 'docx', 'файл', 'документ', 'образец', 'скача'
     ];
-    
+
     const lowerQuery = query.toLowerCase();
     const hasDocIntent = docKeywords.some(keyword => lowerQuery.includes(keyword));
-    
+
     return hasDocIntent ? 'document' : 'question';
   }
 
@@ -65,7 +65,7 @@ class DeepSeekService {
       console.log('User organization:', userOrgId);
 
       const queryEmbedding = await this.getEmbedding(query);
-      
+
       if (!queryEmbedding) {
         console.log('Embedding failed, falling back to legacy search');
         return this.findRelevantContextLegacy(query, pool, queryType, userOrgId);
@@ -73,10 +73,10 @@ class DeepSeekService {
 
       let sql;
       let params;
-      
+
       if (queryType === 'document') {
         sql = `
-          SELECT 
+          SELECT
             f.id as faq_id,
             f.question,
             f.answer,
@@ -98,7 +98,7 @@ class DeepSeekService {
         console.log('Searching for documents only with organization filter');
       } else {
         sql = `
-          SELECT 
+          SELECT
             id,
             question,
             answer,
@@ -124,29 +124,44 @@ class DeepSeekService {
         return this.findRelevantContextLegacy(query, pool, queryType, userOrgId);
       }
 
-      result.rows.forEach(row => {
-        if (queryType === 'document') {
-          console.log(`FAQ ID: ${row.faq_id}, Doc ID: ${row.doc_id}, Similarity: ${Math.round(row.similarity * 100)}%`);
-        } else {
-          console.log(`ID: ${row.id}, Similarity: ${Math.round(row.similarity * 100)}%`);
+      // Формируем контекст для DeepSeek
+      let contextText = 'Найденная информация из базы знаний:\n\n';
+      
+      result.rows.forEach((row, index) => {
+        contextText += `[ИСТОЧНИК ${index + 1}]\n`;
+        contextText += `Категория: ${row.category || 'Общая'}\n`;
+        if (row.question) contextText += `Вопрос: ${row.question}\n`;
+        contextText += `Ответ: ${row.answer}\n`;
+        
+        // Добавляем информацию о файле, если есть
+        if (row.file_path) {
+          contextText += `Связанный файл: /api/documents/download/${row.id}\n`;
         }
+        contextText += '\n';
       });
 
-      return result.rows.map((row, index) => {
-        if (queryType === 'document') {
-          let fileInfo = row.doc_id ? `\n[Скачать файл](/api/documents/download/${row.doc_id})` : '';
-          return `[Документ ${index + 1} (ID: ${row.faq_id}, схожесть: ${Math.round(row.similarity * 100)}%)]
-Категория: ${row.category || 'Общая'}
-${row.question ? `Вопрос: ${row.question}` : ''}
-Ответ: ${row.answer}${fileInfo}`;
-        } else {
-          let fileInfo = row.file_path ? `\n[Скачать файл](/uploads/templates/${row.file_path.split('/').pop()})` : '';
-          return `[Документ ${index + 1} (ID: ${row.id}, схожесть: ${Math.round(row.similarity * 100)}%)]
-Категория: ${row.category || 'Общая'}
-${row.question ? `Вопрос: ${row.question}` : ''}
-Ответ: ${row.answer}${fileInfo}`;
+      // Добавляем документы из таблицы documents по теме
+      const words = query.split(' ').filter(word => word.length > 3);
+      if (words.length > 0) {
+        const docParams = words.map(word => `%${word}%`);
+        const docConditions = words.map((_, i) => `title ILIKE $${i+1}`).join(' OR ');
+        
+        const docsResult = await pool.query(
+          `SELECT id, title FROM documents 
+           WHERE ${docConditions}
+           LIMIT 3`,
+          docParams
+        );
+        
+        if (docsResult.rows.length > 0) {
+          contextText += '\n📁 ДОСТУПНЫЕ ДОКУМЕНТЫ ДЛЯ СКАЧИВАНИЯ:\n';
+          docsResult.rows.forEach(doc => {
+            contextText += `- ${doc.title}: /api/documents/download/${doc.id}\n`;
+          });
         }
-      }).join('\n\n---\n\n');
+      }
+
+      return contextText;
 
     } catch (error) {
       console.error('Error in semantic search:', error);
@@ -161,64 +176,81 @@ ${row.question ? `Вопрос: ${row.question}` : ''}
       console.log('Query type:', queryType);
       console.log('User organization:', userOrgId);
 
+      // 1. Ищем в FAQ
       const words = query.split(' ').filter(word => word.length > 2);
       let params = [`%${query}%`, `${query}%`];
       let wordConditions = '';
 
       if (words.length > 0) {
         wordConditions = words.map((word, i) =>
-          `(keywords ILIKE $${i+3} OR question ILIKE $${i+3} OR answer ILIKE $${i+3})`
+          `(f.keywords ILIKE $${i+3} OR f.question ILIKE $${i+3} OR f.answer ILIKE $${i+3})`
         ).join(' OR ');
         words.forEach(word => params.push(`%${word}%`));
       }
 
-      const fileCondition = queryType === 'document' ? ' AND f.file_path IS NOT NULL' : '';
       const orgCondition = userOrgId ? ' AND (f.organization_id IS NULL OR f.organization_id = $' + (params.length + 1) + ')' : '';
 
       let sql = `
-        SELECT f.id, f.question, f.answer, f.category, f.keywords, f.file_path, d.id as doc_id
+        SELECT f.id, f.question, f.answer, f.category, f.keywords, f.file_path
         FROM faq f
-        LEFT JOIN documents d ON f.file_path = d.file_path
-        WHERE (keywords ILIKE $1
-           OR question ILIKE $1
-           OR answer ILIKE $1
-           OR category ILIKE $1
+        WHERE (f.keywords ILIKE $1
+           OR f.question ILIKE $1
+           OR f.answer ILIKE $1
+           OR f.category ILIKE $1
            ${wordConditions ? ` OR ${wordConditions}` : ''})
-           ${fileCondition}
            ${orgCondition}
         ORDER BY
           CASE
-            WHEN question ILIKE $2 THEN 1
-            WHEN keywords ILIKE $2 THEN 2
+            WHEN f.question ILIKE $2 THEN 1
+            WHEN f.keywords ILIKE $2 THEN 2
             ELSE 3
           END
-        LIMIT 15
+        LIMIT 3
       `;
 
       if (userOrgId) {
         params.push(userOrgId);
       }
 
-      const result = await pool.query(sql, params);
+      const faqResult = await pool.query(sql, params);
+      console.log(`Found ${faqResult.rows.length} FAQ records`);
 
-      console.log(`Found ${result.rows.length} records via legacy search`);
-
-      if (result.rows.length === 0) {
-        return null;
+      // 2. Всегда ищем документы по теме
+      let contextText = '';
+      
+      if (faqResult.rows.length > 0) {
+        contextText = 'Найденная информация из базы знаний:\n\n';
+        faqResult.rows.forEach((faq, index) => {
+          contextText += `[ИСТОЧНИК ${index + 1}]\n`;
+          contextText += `Категория: ${faq.category || 'Общая'}\n`;
+          if (faq.question) contextText += `Вопрос: ${faq.question}\n`;
+          contextText += `Ответ: ${faq.answer}\n\n`;
+        });
       }
 
-      return result.rows.map((row, index) => {
-        let fileInfo = '';
-        if (row.doc_id) {
-          fileInfo = `\n[Скачать файл](/api/documents/download/${row.doc_id})`;
-        } else if (row.file_path) {
-          fileInfo = `\n[Скачать файл](/uploads/templates/${row.file_path.split('/').pop()})`;
-        }
-        return `[Документ ${index + 1} (ID: ${row.id})]
-Категория: ${row.category || 'Общая'}
-${row.question ? `Вопрос: ${row.question}` : ''}
-Ответ: ${row.answer}${fileInfo}`;
-      }).join('\n\n---\n\n');
+      // 3. Ищем документы в таблице documents
+      const searchTerms = words.length > 0 ? words : ['отпуск', 'заявление', 'больничный', 'документ'];
+      const termConditions = searchTerms.map((_, i) => `title ILIKE $${i+1}`).join(' OR ');
+      const docParams = searchTerms.map(term => `%${term}%`);
+      
+      const docsResult = await pool.query(
+        `SELECT id, title FROM documents
+         WHERE ${termConditions}
+         LIMIT 5`,
+        docParams
+      );
+      
+      console.log(`Found ${docsResult.rows.length} documents in database`);
+      
+      if (docsResult.rows.length > 0) {
+        contextText += '\n📁 ДОСТУПНЫЕ ДОКУМЕНТЫ ДЛЯ СКАЧИВАНИЯ:\n';
+        docsResult.rows.forEach(doc => {
+          contextText += `- ${doc.title}: /api/documents/download/${doc.id}\n`;
+        });
+      }
+
+      return contextText || null;
+
     } catch (error) {
       console.error('Error finding context:', error);
       return null;
@@ -228,8 +260,11 @@ ${row.question ? `Вопрос: ${row.question}` : ''}
   async ask(userId, prompt, context = '') {
     try {
       console.log('=== DEEPSEEK_API_KEY used:', this.apiKey ? this.apiKey.substring(0,10) + '...' : 'undefined');
-      
+      console.log('Context length:', context ? context.length : 0);
+      console.log('Context preview:', context ? context.substring(0, 200) : 'empty');
+
       let history = dialogHistory.get(userId) || [];
+      
       history.push({ role: 'user', content: prompt });
 
       if (history.length > 10) {
@@ -241,16 +276,19 @@ ${row.question ? `Вопрос: ${row.question}` : ''}
       console.log('Prompt:', prompt);
       console.log('History length:', history.length);
 
-      const systemPrompt = `Ты - HR-бот компании. Отвечай на вопросы сотрудников, используя ТОЛЬКО предоставленную базу знаний.
+      const systemPrompt = `Ты - дружелюбный HR-бот компании. Общайся с сотрудниками естественно и тепло.
 
-      **ВАЖНО:**
-      - Если пользователь просит документ (скачать, дай, бланк) - обязательно дай ссылку на файл в формате Markdown: [Название файла](ссылка)
-      - Если в базе знаний есть файл - покажи его как кликабельную ссылку
-      - Если документ не найден для организации пользователя, сообщи что документа нет
-      - Для общих вопросов давай инструкции
+**ВАЖНО:**
+- Отвечай как живой человек, а не как робот
+- Используй информацию из базы знаний, но формулируй своими словами
+- Если в разделе "ДОСТУПНЫЕ ДОКУМЕНТЫ" есть ссылки - обязательно предложи их скачать
+- Ссылки давай в формате: [Название документа](/api/documents/download/ID)
+- Можешь задавать уточняющие вопросы
+- Не повторяйся, если диалог продолжается
+- Будь кратким, но дружелюбным
 
-      База знаний (информация из официальных источников):
-      ${context || 'Информация не найдена в базе знаний'}`;
+База знаний (используй эту информацию для ответов):
+${context || 'Информация не найдена в базе знаний'}`;
 
       const messages = [
         { role: 'system', content: systemPrompt },
@@ -262,8 +300,8 @@ ${row.question ? `Вопрос: ${row.question}` : ''}
         {
           model: 'deepseek-chat',
           messages: messages,
-          temperature: 0.3,
-          max_tokens: 800
+          temperature: 0.7,
+          max_tokens: 1000
         },
         {
           headers: {
