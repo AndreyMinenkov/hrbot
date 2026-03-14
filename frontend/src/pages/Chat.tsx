@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { faq } from '../services/api';
-import { chat } from '../services/chat';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import EmojiPicker from 'emoji-picker-react';
@@ -61,42 +60,16 @@ const Chat: React.FC = () => {
     };
   }, [user]);
 
-  // Загружаем историю при монтировании
+  // При первом открытии показываем только приветствие
   useEffect(() => {
-    loadChatHistory();
+    setMessages([{
+      id: 'welcome',
+      text: 'Здравствуйте! Задайте мне вопрос, и я постараюсь найти ответ в базе знаний.',
+      sender: 'bot',
+      timestamp: new Date(),
+      status: 'read'
+    }]);
   }, []);
-
-  const loadChatHistory = async () => {
-    try {
-      const response = await chat.getHistory(15);
-      if (response.data && response.data.length > 0) {
-        // Преобразуем строку timestamp в объект Date
-        const messagesWithDate = response.data.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp)
-        }));
-        setMessages(messagesWithDate);
-      } else {
-        // Если истории нет, добавляем приветствие
-        setMessages([{
-          id: 'welcome',
-          text: 'Здравствуйте! Задайте мне вопрос, и я постараюсь найти ответ в базе знаний.',
-          sender: 'bot',
-          timestamp: new Date(),
-          status: 'read'
-        }]);
-      }
-    } catch (error) {
-      console.error('Error loading chat history:', error);
-      setMessages([{
-        id: 'welcome',
-        text: 'Здравствуйте! Задайте мне вопрос, и я постараюсь найти ответ в базе знаний.',
-        sender: 'bot',
-        timestamp: new Date(),
-        status: 'read'
-      }]);
-    }
-  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -136,19 +109,17 @@ const Chat: React.FC = () => {
       }
 
       const linkText = match[1];
-      const linkUrl = match[2].startsWith('http') ? match[2] : `https://31.130.155.16:8443${match[2]}`;
+      const linkUrl = match[2];
 
       parts.push(
         <a
           key={`link-${match.index}`}
-          href={linkUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="message__link"
+          href="#"
           onClick={(e) => {
             e.preventDefault();
             handleDownloadLink(linkUrl);
           }}
+          className="message__link"
         >
           {linkText}
         </a>
@@ -174,14 +145,12 @@ const Chat: React.FC = () => {
         urlParts.push(
           <a
             key={`url-${urlMatch.index}`}
-            href={currentUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="message__link"
+            href="#"
             onClick={(e) => {
               e.preventDefault();
               handleDownloadLink(currentUrl);
             }}
+            className="message__link"
           >
             {currentUrl}
           </a>
@@ -206,7 +175,16 @@ const Chat: React.FC = () => {
 
   const handleDownloadLink = async (url: string) => {
     try {
-      const response = await fetch(url, {
+      // Извлекаем ID документа из URL
+      const matches = url.match(/\/api\/documents\/download\/(\d+)/);
+      if (!matches || !matches[1]) {
+        throw new Error('Invalid document URL');
+      }
+
+      const documentId = matches[1];
+      const apiUrl = `/api/documents/download/${documentId}`;
+
+      const response = await fetch(apiUrl, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Cache-Control': 'no-cache',
@@ -214,50 +192,52 @@ const Chat: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const blob = await response.blob();
 
-      const extension = url.split('.').pop()?.toLowerCase() || 'docx';
-      let mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-
-      if (extension === 'pdf') {
-        mimeType = 'application/pdf';
-      } else if (extension === 'doc') {
-        mimeType = 'application/msword';
+      // Получаем имя файла из заголовка Content-Disposition
+      let filename = `document-${documentId}.docx`;
+      const contentDisposition = response.headers.get('Content-Disposition');
+      
+      if (contentDisposition) {
+        // Ищем filename*=UTF-8''... формат
+        const utf8Match = contentDisposition.match(/filename\*=UTF-8''(.+)/);
+        if (utf8Match && utf8Match[1]) {
+          filename = decodeURIComponent(utf8Match[1]);
+        } else {
+          // Ищем обычный filename="..."
+          const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+          if (filenameMatch && filenameMatch[1]) {
+            filename = filenameMatch[1].replace(/['"]/g, '');
+            // Пробуем раскодировать, если это закодированная строка
+            try {
+              filename = decodeURIComponent(filename);
+            } catch (e) {
+              // Если не получилось, оставляем как есть
+            }
+          }
+        }
       }
 
-      const blobWithType = new Blob([blob], { type: mimeType });
-      const blobUrl = window.URL.createObjectURL(blobWithType);
-
+      // Создаем и кликаем на ссылку
+      const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.download = url.split('/').pop() || 'document.docx';
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-
+      link.download = filename;
       document.body.appendChild(link);
+      link.click();
 
+      // Очищаем
       setTimeout(() => {
-        link.click();
-        setTimeout(() => {
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(blobUrl);
-        }, 100);
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
       }, 100);
 
     } catch (error) {
       console.error('Error downloading file:', error);
-      const link = document.createElement('a');
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        document.body.removeChild(link);
-      }, 100);
+      alert('Не удалось скачать файл. Пожалуйста, попробуйте позже.');
     }
   };
 
@@ -336,13 +316,6 @@ const Chat: React.FC = () => {
 
       setMessages(prev => [...prev, botMessage]);
 
-      // Сохраняем в историю (только один раз)
-      try {
-        await chat.saveMessage(messageText, botMessageText);
-      } catch (saveError) {
-        console.error('Error saving to history:', saveError);
-      }
-
     } catch (error) {
       console.error('Chat error:', error);
 
@@ -366,8 +339,14 @@ const Chat: React.FC = () => {
   };
 
   const handleDownloadFile = (filePath: string) => {
-    const url = `https://31.130.155.16:8443${filePath}`;
-    handleDownloadLink(url);
+    // Извлекаем ID из filePath
+    const matches = filePath.match(/\/api\/documents\/download\/(\d+)/);
+    if (matches && matches[1]) {
+      const apiUrl = `/api/documents/download/${matches[1]}`;
+      handleDownloadLink(apiUrl);
+    } else {
+      handleDownloadLink(filePath);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -414,9 +393,9 @@ const Chat: React.FC = () => {
           </div>
           <div className="chat-header__avatar">
             {avatarUrl ? (
-              <img 
-                src={avatarUrl} 
-                alt="avatar" 
+              <img
+                src={avatarUrl}
+                alt="avatar"
                 className="chat-header__avatar-img"
               />
             ) : (

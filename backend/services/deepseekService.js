@@ -1,4 +1,5 @@
 const axios = require('axios');
+const pool = require('../config/db');
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
@@ -87,15 +88,15 @@ class DeepSeekService {
             d.title as doc_title,
             1 - (f.embedding <=> $1) as similarity
           FROM faq f
-          LEFT JOIN documents d ON f.file_path = d.file_path
+          LEFT JOIN documents d ON f.document_id = d.id
           WHERE f.embedding IS NOT NULL
-            AND f.file_path IS NOT NULL
+            AND f.document_id IS NOT NULL
             AND (f.organization_id IS NULL OR f.organization_id = $2)
           ORDER BY f.embedding <=> $1
-          LIMIT 1
+          LIMIT 3
         `;
         params = [JSON.stringify(queryEmbedding), userOrgId];
-        console.log('Searching for documents only with organization filter');
+        console.log('Searching for documents with organization filter');
       } else {
         sql = `
           SELECT
@@ -105,10 +106,12 @@ class DeepSeekService {
             category,
             keywords,
             file_path,
+            document_id,
             1 - (embedding <=> $1) as similarity
           FROM faq
           WHERE embedding IS NOT NULL
             AND (organization_id IS NULL OR organization_id = $2)
+            AND parent_id IS NOT NULL
           ORDER BY embedding <=> $1
           LIMIT 10
         `;
@@ -134,32 +137,11 @@ class DeepSeekService {
         contextText += `Ответ: ${row.answer}\n`;
         
         // Добавляем информацию о файле, если есть
-        if (row.file_path) {
-          contextText += `Связанный файл: /api/documents/download/${row.id}\n`;
+        if (row.document_id) {
+          contextText += `Связанный файл: /api/documents/download/${row.document_id}\n`;
         }
         contextText += '\n';
       });
-
-      // Добавляем документы из таблицы documents по теме
-      const words = query.split(' ').filter(word => word.length > 3);
-      if (words.length > 0) {
-        const docParams = words.map(word => `%${word}%`);
-        const docConditions = words.map((_, i) => `title ILIKE $${i+1}`).join(' OR ');
-        
-        const docsResult = await pool.query(
-          `SELECT id, title FROM documents 
-           WHERE ${docConditions}
-           LIMIT 3`,
-          docParams
-        );
-        
-        if (docsResult.rows.length > 0) {
-          contextText += '\n📁 ДОСТУПНЫЕ ДОКУМЕНТЫ ДЛЯ СКАЧИВАНИЯ:\n';
-          docsResult.rows.forEach(doc => {
-            contextText += `- ${doc.title}: /api/documents/download/${doc.id}\n`;
-          });
-        }
-      }
 
       return contextText;
 
@@ -176,7 +158,7 @@ class DeepSeekService {
       console.log('Query type:', queryType);
       console.log('User organization:', userOrgId);
 
-      // 1. Ищем в FAQ
+      // 1. Ищем в FAQ (только вопросы, не категории)
       const words = query.split(' ').filter(word => word.length > 2);
       let params = [`%${query}%`, `${query}%`];
       let wordConditions = '';
@@ -191,9 +173,10 @@ class DeepSeekService {
       const orgCondition = userOrgId ? ' AND (f.organization_id IS NULL OR f.organization_id = $' + (params.length + 1) + ')' : '';
 
       let sql = `
-        SELECT f.id, f.question, f.answer, f.category, f.keywords, f.file_path
+        SELECT f.id, f.question, f.answer, f.category, f.keywords, f.document_id
         FROM faq f
-        WHERE (f.keywords ILIKE $1
+        WHERE parent_id IS NOT NULL
+          AND (f.keywords ILIKE $1
            OR f.question ILIKE $1
            OR f.answer ILIKE $1
            OR f.category ILIKE $1
@@ -205,7 +188,7 @@ class DeepSeekService {
             WHEN f.keywords ILIKE $2 THEN 2
             ELSE 3
           END
-        LIMIT 3
+        LIMIT 5
       `;
 
       if (userOrgId) {
@@ -215,7 +198,7 @@ class DeepSeekService {
       const faqResult = await pool.query(sql, params);
       console.log(`Found ${faqResult.rows.length} FAQ records`);
 
-      // 2. Всегда ищем документы по теме
+      // 2. Формируем контекст
       let contextText = '';
       
       if (faqResult.rows.length > 0) {
@@ -223,21 +206,26 @@ class DeepSeekService {
         faqResult.rows.forEach((faq, index) => {
           contextText += `[ИСТОЧНИК ${index + 1}]\n`;
           contextText += `Категория: ${faq.category || 'Общая'}\n`;
-          if (faq.question) contextText += `Вопрос: ${faq.question}\n`;
-          contextText += `Ответ: ${faq.answer}\n\n`;
+          contextText += `Вопрос: ${faq.question}\n`;
+          contextText += `Ответ: ${faq.answer}\n`;
+          if (faq.document_id) {
+            contextText += `Ссылка на документ: /api/documents/download/${faq.document_id}\n`;
+          }
+          contextText += '\n';
         });
       }
 
-      // 3. Ищем документы в таблице documents
+      // 3. Ищем документы напрямую в таблице documents
       const searchTerms = words.length > 0 ? words : ['отпуск', 'заявление', 'больничный', 'документ'];
       const termConditions = searchTerms.map((_, i) => `title ILIKE $${i+1}`).join(' OR ');
       const docParams = searchTerms.map(term => `%${term}%`);
       
       const docsResult = await pool.query(
-        `SELECT id, title FROM documents
+        `SELECT id, title, category FROM documents
          WHERE ${termConditions}
+           AND (organization_id = $${searchTerms.length + 1} OR organization_id IS NULL)
          LIMIT 5`,
-        docParams
+        [...docParams, userOrgId]
       );
       
       console.log(`Found ${docsResult.rows.length} documents in database`);
@@ -245,15 +233,15 @@ class DeepSeekService {
       if (docsResult.rows.length > 0) {
         contextText += '\n📁 ДОСТУПНЫЕ ДОКУМЕНТЫ ДЛЯ СКАЧИВАНИЯ:\n';
         docsResult.rows.forEach(doc => {
-          contextText += `- ${doc.title}: /api/documents/download/${doc.id}\n`;
+          contextText += `- [${doc.title}](/api/documents/download/${doc.id}) (${doc.category || 'Общие'})\n`;
         });
       }
 
-      return contextText || null;
+      return contextText || 'Информация не найдена в базе знаний';
 
     } catch (error) {
       console.error('Error finding context:', error);
-      return null;
+      return 'Информация не найдена в базе знаний';
     }
   }
 
@@ -281,14 +269,15 @@ class DeepSeekService {
 **ВАЖНО:**
 - Отвечай как живой человек, а не как робот
 - Используй информацию из базы знаний, но формулируй своими словами
+- **НИКОГДА НЕ ВЫДУМЫВАЙ ССЫЛКИ НА ДОКУМЕНТЫ** - используй ТОЛЬКО ссылки из раздела "ДОСТУПНЫЕ ДОКУМЕНТЫ"
 - Если в разделе "ДОСТУПНЫЕ ДОКУМЕНТЫ" есть ссылки - обязательно предложи их скачать
 - Ссылки давай в формате: [Название документа](/api/documents/download/ID)
+- Если информации в базе знаний нет - предложи обратиться к HR-специалисту
 - Можешь задавать уточняющие вопросы
-- Не повторяйся, если диалог продолжается
 - Будь кратким, но дружелюбным
 
 База знаний (используй эту информацию для ответов):
-${context || 'Информация не найдена в базе знаний'}`;
+${context}`;
 
       const messages = [
         { role: 'system', content: systemPrompt },

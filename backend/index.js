@@ -90,3 +90,13 @@ console.log('- AI analysis: /api/ai/analyze-document');
 const chatRoutes = require('./routes/chatRoutes');
 app.use('/api/chat', chatRoutes);
 console.log('- Chat history: /api/chat/history, /api/chat/save');
+
+// Подключаем роуты для загрузки документов с авто-наполнением базы знаний
+const documentUploadRoutes = require('./routes/documentUploadRoutes');
+app.use('/api/documents/admin', documentUploadRoutes);
+console.log('- Document upload with auto-knowledge: /api/documents/admin/upload, /api/documents/admin/bulk-upload, /api/documents/admin/status/:id');
+
+// Подключаем роут для поиска по документам
+const documentSearchRoutes = require('./routes/documentSearchRoutes');
+app.use('/api/documents/search', documentSearchRoutes);
+console.log('- Document semantic search: /api/documents/search');
