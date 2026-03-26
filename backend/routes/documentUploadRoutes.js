@@ -10,7 +10,7 @@ const autoKnowledgeService = require('../services/autoKnowledgeService');
 // Настройка multer для загрузки файлов
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, '../../uploads/documents');
+    const uploadDir = path.join(__dirname, '../uploads/documents');
     // Создаем папку, если её нет
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
@@ -61,7 +61,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     // Сохраняем информацию о документе в базу
     const documentResult = await pool.query(
-      `INSERT INTO documents 
+      `INSERT INTO documents
        (title, category, file_path, file_size, organization_id, created_at)
        VALUES ($1, $2, $3, $4, $5, NOW())
        RETURNING id`,
@@ -123,7 +123,7 @@ router.post('/create', upload.single('file'), async (req, res) => {
 
     // Сохраняем информацию о документе в базу
     const documentResult = await pool.query(
-      `INSERT INTO documents 
+      `INSERT INTO documents
        (title, category, file_path, file_size, organization_id, created_at)
        VALUES ($1, $2, $3, $4, $5, NOW())
        RETURNING id`,
@@ -174,7 +174,7 @@ router.post('/bulk-upload', upload.array('files', 20), async (req, res) => {
 
     const { category, organization_id } = req.body;
     const organizationId = organization_id || req.user.organization_id;
-    
+
     const results = [];
     const errors = [];
 
@@ -182,7 +182,7 @@ router.post('/bulk-upload', upload.array('files', 20), async (req, res) => {
       try {
         // Сохраняем документ
         const documentResult = await pool.query(
-          `INSERT INTO documents 
+          `INSERT INTO documents
            (title, category, file_path, file_size, organization_id, created_at)
            VALUES ($1, $2, $3, $4, $5, NOW())
            RETURNING id`,
@@ -238,7 +238,7 @@ router.post('/bulk-upload', upload.array('files', 20), async (req, res) => {
 router.get('/status/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT d.id, d.title, d.category, 
+      `SELECT d.id, d.title, d.category,
               q.id as question_id, q.question,
               c.id as category_id
        FROM documents d
